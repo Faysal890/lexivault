@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-headline: 'Plus Jakarta Sans', sans-serif;
+    --font-body: 'Inter', sans-serif;
+  }
+  body {
+    font-family: var(--font-body);
+    @apply bg-surface text-on-surface antialiased;
+    min-height: 100dvh;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-headline);
+  }
+}
+
+@layer components {
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    font-family: 'Material Symbols Outlined';
+    font-style: normal;
+    font-weight: normal;
+    font-size: 24px;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    user-select: none;
+  }
+
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, #0058be 0%, #2170e4 100%);
+  }
+
+  .bg-gradient-secondary {
+    background: linear-gradient(135deg, #006c49 0%, #4edea3 100%);
+  }
+
+  .card {
+    @apply bg-surface-container-lowest rounded-3xl p-6;
+  }
+
+  .btn-primary {
+    @apply w-full py-4 px-8 rounded-2xl bg-gradient-primary text-on-primary font-bold text-lg 
+           shadow-lg shadow-primary/20 active:scale-[0.98] transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply w-full py-4 px-8 rounded-2xl bg-surface-container-high text-on-surface font-bold text-lg
+           active:scale-[0.98] transition-all duration-200;
+  }
+
+  .nav-item {
+    @apply flex flex-col items-center justify-center text-slate-400 active:bg-slate-50 transition-all px-3 py-1.5;
+  }
+
+  .nav-item-active {
+    @apply bg-blue-100 text-blue-700 rounded-2xl scale-110;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-container-lowest 
+           text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 
+           focus:ring-primary/30 focus:border-primary transition-all;
+  }
+
+  .shimmer-bar {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer-bar::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 2s infinite;
+  }
+  @keyframes shimmer {
+    100% { left: 100%; }
+  }
+
+  .quiz-option {
+    @apply flex items-center justify-between p-5 bg-surface-container-lowest border-2 border-transparent 
+           rounded-2xl transition-all duration-200 text-left cursor-pointer w-full
+           hover:border-primary-fixed-dim active:scale-[0.98];
+  }
+  .quiz-option-selected {
+    @apply bg-primary-fixed/30 border-primary scale-[1.01] shadow-sm;
+  }
+  .quiz-option-correct {
+    @apply bg-secondary-container/50 border-secondary;
+  }
+  .quiz-option-wrong {
+    @apply bg-error-container/50 border-error;
+  }
+}
