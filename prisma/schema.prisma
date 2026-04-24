@@ -24,6 +24,7 @@ model User {
   streak        Streak?
   accounts      Account[]
   sessions      Session[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -72,6 +73,8 @@ model Word {
   wordStats       WordStats?
   quizQuestions   QuizQuestion[]
 
+  @@index([userId])
+  @@index([userId, createdAt])
   @@map("words")
 }
 
@@ -86,6 +89,7 @@ model WordStats {
 
   word         Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
 
+  @@index([nextReview])
   @@map("word_stats")
 }
 
@@ -101,6 +105,8 @@ model Quiz {
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   questions      QuizQuestion[]
 
+  @@index([userId])
+  @@index([userId, createdAt])
   @@map("quizzes")
 }
 
@@ -132,4 +138,18 @@ model Streak {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("streaks")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }

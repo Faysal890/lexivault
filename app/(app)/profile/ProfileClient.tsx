@@ -15,6 +15,9 @@ export default function ProfileClient({ user, streak }: Props) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: user.name, nativeLanguage: user.nativeLanguage, dailyGoal: user.dailyGoal });
+  const [securityOpen, setSecurityOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
 
   const handleSave = async () => {
     setSaving(true);
@@ -30,6 +33,38 @@ export default function ProfileClient({ user, streak }: Props) {
     } catch {
       toast.error("Failed to update profile");
     } finally { setSaving(false); }
+  };
+
+  const handleChangePassword = async () => {
+    if (!pwForm.currentPassword || !pwForm.newPassword || !pwForm.confirmPassword) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    if (pwForm.newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters");
+      return;
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const res = await fetch("/api/profile/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pwForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to change password");
+      toast.success("Password changed successfully!");
+      setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setSecurityOpen(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to change password");
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   const initials = user.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
@@ -118,6 +153,88 @@ export default function ProfileClient({ user, streak }: Props) {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Security */}
+      <div className="bg-surface-container-lowest rounded-3xl p-5">
+        <button
+          className="flex items-center justify-between w-full"
+          onClick={() => setSecurityOpen((v) => !v)}
+        >
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-on-surface-variant">shield</span>
+            <h3 className="font-headline font-bold text-on-surface">Security</h3>
+          </div>
+          <span className="material-symbols-outlined text-on-surface-variant text-base">
+            {securityOpen ? "expand_less" : "expand_more"}
+          </span>
+        </button>
+
+        {securityOpen && (
+          <div className="mt-4 space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+                Current Password
+              </label>
+              <input
+                type="password"
+                value={pwForm.currentPassword}
+                onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
+                placeholder="••••••••"
+                className="input-field"
+                disabled={changingPassword}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+                New Password
+              </label>
+              <input
+                type="password"
+                value={pwForm.newPassword}
+                onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })}
+                placeholder="At least 8 characters"
+                className="input-field"
+                disabled={changingPassword}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={pwForm.confirmPassword}
+                onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
+                placeholder="Repeat new password"
+                className="input-field"
+                disabled={changingPassword}
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => { setSecurityOpen(false); setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" }); }}
+                className="flex-1 py-3 rounded-xl border-2 border-outline-variant text-on-surface-variant font-semibold text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={changingPassword}
+                className="flex-1 py-3 rounded-xl bg-primary text-on-primary font-bold text-sm disabled:opacity-60 flex items-center justify-center gap-1"
+              >
+                {changingPassword ? (
+                  <>
+                    <span className="material-symbols-outlined animate-spin text-sm">refresh</span>
+                    Saving...
+                  </>
+                ) : (
+                  "Update Password"
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sign Out */}

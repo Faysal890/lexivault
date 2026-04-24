@@ -4,7 +4,10 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 async function getDashboardData(userId: string) {
-  const [user, streak, wordCount, masteredCount, recentWords, recentQuiz] = await Promise.all([
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [user, streak, wordCount, masteredCount, recentWords, recentQuiz, todayWords] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, dailyGoal: true } }),
     prisma.streak.findUnique({ where: { userId } }),
     prisma.word.count({ where: { userId } }),
@@ -15,20 +18,14 @@ async function getDashboardData(userId: string) {
       where: { userId },
       orderBy: { createdAt: "desc" },
       take: 5,
-      include: { wordStats: true },
+      include: { wordStats: { select: { correctCount: true } } },
     }),
     prisma.quiz.findFirst({
       where: { userId },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.word.count({ where: { userId, createdAt: { gte: todayStart } } }),
   ]);
-
-  // Calculate today's goal progress
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayWords = await prisma.word.count({
-    where: { userId, createdAt: { gte: todayStart } },
-  });
 
   return { user, streak, wordCount, masteredCount, recentWords, recentQuiz, todayWords };
 }

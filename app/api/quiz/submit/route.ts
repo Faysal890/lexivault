@@ -47,22 +47,29 @@ export async function POST(req: Request) {
       },
     });
 
-    // Update word stats using SRS
-    for (const q of questions) {
-      const ws = await prisma.wordStats.findUnique({ where: { wordId: q.wordId } });
-      if (!ws) continue;
-      const { newEase, nextReview } = calculateNextReview(ws.correctCount, ws.easeFactor, q.isCorrect);
-      await prisma.wordStats.update({
-        where: { wordId: q.wordId },
-        data: {
-          correctCount: q.isCorrect ? { increment: 1 } : ws.correctCount,
-          wrongCount: !q.isCorrect ? { increment: 1 } : ws.wrongCount,
-          lastReviewed: new Date(),
-          nextReview,
-          easeFactor: newEase,
-        },
-      });
-    }
+    // Update word stats using SRS (parallel updates)
+    const wordStatsList = await prisma.wordStats.findMany({
+      where: { wordId: { in: questions.map((q: { wordId: string }) => q.wordId) } },
+    });
+    const wsMap = new Map(wordStatsList.map(ws => [ws.wordId, ws]));
+
+    await Promise.all(
+      questions.map((q: { wordId: string; isCorrect: boolean }) => {
+        const ws = wsMap.get(q.wordId);
+        if (!ws) return Promise.resolve();
+        const { newEase, nextReview } = calculateNextReview(ws.correctCount, ws.easeFactor, q.isCorrect);
+        return prisma.wordStats.update({
+          where: { wordId: q.wordId },
+          data: {
+            correctCount: q.isCorrect ? { increment: 1 } : ws.correctCount,
+            wrongCount: !q.isCorrect ? { increment: 1 } : ws.wrongCount,
+            lastReviewed: new Date(),
+            nextReview,
+            easeFactor: newEase,
+          },
+        });
+      })
+    );
 
     // Award XP based on performance
     const accuracy = totalQuestions > 0 ? score / totalQuestions : 0;

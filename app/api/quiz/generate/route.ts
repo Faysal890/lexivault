@@ -26,11 +26,12 @@ export async function GET(req: Request) {
   const type = searchParams.get("type") ?? "mixed";
   const size = Math.min(20, Math.max(5, parseInt(searchParams.get("size") ?? "10")));
 
-  // Fetch user words with SRS priority (words due for review first)
+  // Fetch user words with SRS priority (cap at 100 to avoid loading entire collection)
   const allWords = await prisma.word.findMany({
     where: { userId: session.user.id },
     include: { wordStats: true },
     orderBy: { createdAt: "desc" },
+    take: 100,
   });
 
   if (allWords.length < 2) {

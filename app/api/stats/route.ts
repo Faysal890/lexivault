@@ -16,8 +16,8 @@ export async function GET() {
     prisma.quiz.aggregate({ where: { userId }, _avg: { score: true }, _sum: { totalQuestions: true } }),
   ]);
 
-  const avgAccuracy = avgAccuracyRaw._sum.totalQuestions && avgAccuracyRaw._sum.totalQuestions > 0
-    ? Math.round(((avgAccuracyRaw._avg.score ?? 0) / (avgAccuracyRaw._sum.totalQuestions / (await prisma.quiz.count({ where: { userId } })))) * 100)
+  const avgAccuracy = totalQuizzes > 0 && avgAccuracyRaw._sum.totalQuestions && avgAccuracyRaw._sum.totalQuestions > 0
+    ? Math.round(((avgAccuracyRaw._avg.score ?? 0) / (avgAccuracyRaw._sum.totalQuestions / totalQuizzes)) * 100)
     : 0;
 
   return NextResponse.json({

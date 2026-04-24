@@ -6,6 +6,9 @@ const nextConfig = {
       { protocol: "https", hostname: "avatars.githubusercontent.com" },
     ],
   },
+  experimental: {
+    optimizePackageImports: ["recharts", "framer-motion", "date-fns"],
+  },
 };
 
 export default nextConfig;
