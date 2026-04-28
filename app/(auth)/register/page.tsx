@@ -63,7 +63,7 @@ export default function RegisterPage() {
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-40 -left-32 w-[28rem] h-[28rem] rounded-full bg-white/10 blur-3xl" />
         <Link href="/" className="relative z-10 flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center font-black font-headline text-lg">L</div>
+          <img src="/logo-dark.svg" alt="Lexora" className="h-10 w-auto" />
           <span className="text-2xl font-black tracking-tight font-headline">Lexora</span>
         </Link>
         <div className="relative z-10 space-y-6 max-w-md">
@@ -81,7 +81,8 @@ export default function RegisterPage() {
       {/* Form panel */}
       <div className="flex flex-col items-center justify-center px-6 py-12 lg:px-16">
         <div className="w-full max-w-sm lg:max-w-md">
-          <Link href="/" className="block text-center mb-10 lg:hidden">
+          <Link href="/" className="flex items-center justify-center gap-2 mb-10 lg:hidden">
+            <img src="/logo-primary.svg" alt="Lexora" className="h-9 w-auto" />
             <span className="text-3xl font-black font-headline text-on-surface">Lexora</span>
           </Link>
 

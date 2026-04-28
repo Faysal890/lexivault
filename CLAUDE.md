@@ -87,7 +87,8 @@ DATABASE_URL=postgresql://...
 NEXTAUTH_SECRET=<random 32-byte base64>
 NEXTAUTH_URL=http://localhost:3000
 NEXT_PUBLIC_APP_URL=http://localhost:3000   # Used to build password-reset links
-RESEND_API_KEY=re_...                       # Resend transactional email (for password reset)
+GMAIL_USER=you@gmail.com                    # Gmail address for transactional email (nodemailer)
+GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx    # Gmail App Password (not your login password)
 ```
 
 ## Key Constraints
