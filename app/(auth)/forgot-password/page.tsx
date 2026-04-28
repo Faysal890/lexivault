@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { authApi, ApiClientError } from "@/lib/api-client";
 
 type Stage = "form" | "sent";
 
@@ -18,18 +19,11 @@ export default function ForgotPasswordPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Something went wrong");
-      }
+      await authApi.forgotPassword({ email });
       setStage("sent");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      const msg = err instanceof ApiClientError ? err.message : "Something went wrong";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -37,12 +31,12 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-dvh bg-surface flex flex-col items-center justify-center px-6 py-12">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm lg:max-w-md">
         <Link href="/" className="block text-center mb-10">
-          <span className="text-3xl font-black font-headline text-on-surface">Lexora</span>
+          <span className="text-3xl lg:text-4xl font-black font-headline text-on-surface">Lexora</span>
         </Link>
 
-        <div className="bg-surface-container-lowest rounded-3xl p-8 shadow-sm">
+        <div className="bg-surface-container-lowest rounded-3xl p-8 lg:p-10 shadow-sm">
           {stage === "form" ? (
             <>
               <div className="flex items-center gap-3 mb-6">

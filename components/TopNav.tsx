@@ -9,7 +9,7 @@ export default function TopNav() {
 
   return (
     <>
-      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md shadow-sm">
+      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md shadow-sm lg:hidden">
         <div className="flex justify-between items-center px-4 py-3 max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
             <Link href="/dashboard" className="text-xl font-black tracking-tight text-on-surface font-headline">

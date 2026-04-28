@@ -1,14 +1,13 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/server/auth";
+import { profileService } from "@/lib/server/services/profile.service";
+import { streakRepo } from "@/lib/server/repositories/streak.repo";
 import ProfileClient from "./ProfileClient";
 
 export default async function ProfilePage() {
-  const session = await getServerSession(authOptions);
-  const user = await prisma.user.findUnique({
-    where: { id: session!.user.id },
-    select: { id: true, name: true, email: true, nativeLanguage: true, dailyGoal: true, createdAt: true },
-  });
-  const streak = await prisma.streak.findUnique({ where: { userId: session!.user.id } });
-  return <ProfileClient user={user!} streak={streak} />;
+  const userId = await requireUserId();
+  const [user, streak] = await Promise.all([
+    profileService.get(userId),
+    streakRepo.findByUserId(userId),
+  ]);
+  return <ProfileClient user={user} streak={streak} />;
 }

@@ -1,0 +1,631 @@
+openapi: 3.1.0
+info:
+  title: Lexora API
+  version: "1.0.0"
+  description: |
+    REST API for Lexora — a vocabulary learning app with spaced repetition,
+    AI-generated example sentences, and gamification.
+
+    All responses use a uniform envelope: `{ "data": ... }` on success or
+    `{ "error": { "code", "message", "details?" } }` on failure.
+servers:
+  - url: /api/v1
+
+security:
+  - sessionCookie: []
+
+tags:
+  - name: Auth
+    description: Account creation, email verification, password reset
+  - name: Words
+    description: User vocabulary CRUD and AI example generation
+  - name: Quiz
+    description: Spaced-repetition quiz generation and submission
+  - name: Stats
+    description: Aggregate stats summary
+  - name: Profile
+    description: Profile read / update / password change
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Account created; verification email sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /auth/verify-email:
+    get:
+      tags: [Auth]
+      summary: Verify email via token
+      security: []
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema: { type: string, minLength: 64, maxLength: 64 }
+      responses:
+        "200":
+          description: Verification succeeded (idempotent)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /auth/resend-verification:
+    post:
+      tags: [Auth]
+      summary: Resend verification email (always 200 — no enumeration)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "200":
+          description: Always succeeds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Trigger password reset email (always 200 — no enumeration)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "200":
+          description: Always succeeds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password with token from email
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string, minLength: 64, maxLength: 64 }
+                password: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        "200":
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /words:
+    get:
+      tags: [Words]
+      summary: List all words for the current user
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: tag
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of words
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Word" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Words]
+      summary: Create a word (+5 XP)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWordInput"
+      responses:
+        "201":
+          description: Word created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Word" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /words/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Words]
+      summary: Get one word
+      responses:
+        "200":
+          description: Word
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Word" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Words]
+      summary: Update a word (partial)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWordInput"
+      responses:
+        "200":
+          description: Updated word
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Word" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+    delete:
+      tags: [Words]
+      summary: Delete a word
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /words/{id}/generate-example:
+    post:
+      tags: [Words]
+      summary: Generate an AI example sentence (never overwrites existing)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Generation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      generated: { type: boolean }
+                      sentence: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "502": { $ref: "#/components/responses/DependencyError" }
+
+  /quiz/generate:
+    get:
+      tags: [Quiz]
+      summary: Generate an in-memory quiz (not persisted)
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [mixed, multiple_choice, fill_blank, reverse]
+            default: mixed
+        - in: query
+          name: size
+          schema: { type: integer, minimum: 5, maximum: 20, default: 10 }
+      responses:
+        "200":
+          description: List of generated questions (empty if user has < 2 words)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/QuizQuestion" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /quiz/submit:
+    post:
+      tags: [Quiz]
+      summary: Submit a finished quiz (persists, applies SM-2, awards XP)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitQuizInput"
+      responses:
+        "201":
+          description: Quiz recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      quizId: { type: string }
+                      xpGained: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /stats:
+    get:
+      tags: [Stats]
+      summary: Aggregate stats summary
+      responses:
+        "200":
+          description: Stats summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/StatsSummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /profile:
+    get:
+      tags: [Profile]
+      summary: Get current user's profile
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Profile" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Profile]
+      summary: Update profile (partial)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileInput"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Profile" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /profile/change-password:
+    post:
+      tags: [Profile]
+      summary: Change password while signed in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword, confirmPassword]
+              properties:
+                currentPassword: { type: string, minLength: 1 }
+                newPassword: { type: string, minLength: 8, maxLength: 128 }
+                confirmPassword: { type: string }
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: |
+        NextAuth session cookie. Issued via the NextAuth credentials flow at
+        `/api/auth/callback/credentials` (outside this spec). The browser
+        sends it automatically on same-origin requests.
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: No or invalid session
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Resource already exists
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationError:
+      description: Input validation failed
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: Upstream rate limit (e.g., AI quota)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    DependencyError:
+      description: Upstream dependency failed
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                [
+                  BAD_REQUEST,
+                  UNAUTHORIZED,
+                  FORBIDDEN,
+                  NOT_FOUND,
+                  CONFLICT,
+                  VALIDATION_ERROR,
+                  RATE_LIMITED,
+                  DEPENDENCY_ERROR,
+                  INTERNAL_ERROR,
+                ]
+            message: { type: string }
+            details: {}
+
+    MessageResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            message: { type: string }
+
+    RegisterInput:
+      type: object
+      required: [name, email, password]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 50 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 128 }
+        nativeLanguage: { type: string, default: Bengali }
+
+    RegisterResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            message: { type: string }
+            devVerifyUrl:
+              type: string
+              description: Only present in development; for skipping email in local dev
+
+    Word:
+      type: object
+      required: [id, userId, englishWord, meaning, difficultyLevel, tags, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        englishWord: { type: string }
+        meaning: { type: string }
+        exampleSentence:
+          type: [string, "null"]
+        difficultyLevel:
+          type: integer
+          enum: [1, 2, 3]
+        tags:
+          type: string
+          description: Comma-separated tags
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        wordStats:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                correctCount: { type: integer }
+                wrongCount: { type: integer }
+                lastReviewed:
+                  type: [string, "null"]
+                  format: date-time
+                nextReview:
+                  type: [string, "null"]
+                  format: date-time
+                easeFactor: { type: number }
+
+    CreateWordInput:
+      type: object
+      required: [englishWord, meaning]
+      properties:
+        englishWord: { type: string, minLength: 1, maxLength: 100 }
+        meaning: { type: string, minLength: 1, maxLength: 500 }
+        exampleSentence: { type: string, maxLength: 500, default: "" }
+        difficultyLevel:
+          type: integer
+          enum: [1, 2, 3]
+          default: 1
+        tags:
+          type: string
+          maxLength: 200
+          default: ""
+
+    UpdateWordInput:
+      type: object
+      properties:
+        englishWord: { type: string, minLength: 1, maxLength: 100 }
+        meaning: { type: string, minLength: 1, maxLength: 500 }
+        exampleSentence: { type: string, maxLength: 500 }
+        difficultyLevel:
+          type: integer
+          enum: [1, 2, 3]
+        tags: { type: string, maxLength: 200 }
+
+    QuizQuestion:
+      type: object
+      required: [wordId, word, meaning, questionType, question, correctAnswer]
+      properties:
+        wordId: { type: string }
+        word: { type: string }
+        meaning: { type: string }
+        questionType:
+          type: string
+          enum: [multiple_choice, fill_blank, reverse]
+        question: { type: string }
+        options:
+          type: array
+          items: { type: string }
+          description: Present for multiple_choice and reverse; omitted for fill_blank
+        correctAnswer: { type: string }
+
+    SubmitQuizInput:
+      type: object
+      required: [score, totalQuestions, questions]
+      properties:
+        quizType:
+          type: string
+          enum: [mixed, multiple_choice, fill_blank, reverse]
+          default: mixed
+        score: { type: integer, minimum: 0 }
+        totalQuestions: { type: integer, minimum: 1 }
+        timeTaken: { type: integer, minimum: 0 }
+        questions:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [wordId, questionType, correctAnswer, isCorrect]
+            properties:
+              wordId: { type: string }
+              questionType:
+                type: string
+                enum: [multiple_choice, fill_blank, reverse]
+              userAnswer: { type: string }
+              correctAnswer: { type: string }
+              isCorrect: { type: boolean }
+              options:
+                type: array
+                items: { type: string }
+
+    StatsSummary:
+      type: object
+      properties:
+        currentStreak: { type: integer }
+        longestStreak: { type: integer }
+        totalXP: { type: integer }
+        level: { type: integer }
+        totalWords: { type: integer }
+        masteredWords: { type: integer }
+        totalQuizzes: { type: integer }
+        avgAccuracy: { type: integer, description: Percent (0–100) }
+
+    Profile:
+      type: object
+      required: [id, name, email, nativeLanguage, dailyGoal, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        nativeLanguage: { type: string }
+        dailyGoal: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    UpdateProfileInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 50 }
+        nativeLanguage: { type: string, minLength: 1, maxLength: 50 }
+        dailyGoal: { type: integer, minimum: 1, maximum: 50 }

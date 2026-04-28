@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { authApi, ApiClientError } from "@/lib/api-client";
 
 function ResetForm() {
   const router = useRouter();
@@ -36,18 +37,12 @@ function ResetForm() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password: form.password, confirmPassword: form.confirmPassword }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to reset password");
-
+      await authApi.resetPassword({ token: token ?? "", password: form.password });
       toast.success("Password reset successfully! Please sign in.");
       router.push("/login");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      const msg = err instanceof ApiClientError ? err.message : "Something went wrong";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -55,12 +50,12 @@ function ResetForm() {
 
   return (
     <div className="min-h-dvh bg-surface flex flex-col items-center justify-center px-6 py-12">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm lg:max-w-md">
         <Link href="/" className="block text-center mb-10">
-          <span className="text-3xl font-black font-headline text-on-surface">Lexora</span>
+          <span className="text-3xl lg:text-4xl font-black font-headline text-on-surface">Lexora</span>
         </Link>
 
-        <div className="bg-surface-container-lowest rounded-3xl p-8 shadow-sm">
+        <div className="bg-surface-container-lowest rounded-3xl p-8 lg:p-10 shadow-sm">
           {tokenError ? (
             <div className="text-center py-4">
               <span
