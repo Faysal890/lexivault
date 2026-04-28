@@ -11,7 +11,9 @@ export default function TopNav() {
     <>
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md shadow-sm lg:hidden">
         <div className="flex justify-between items-center px-4 py-3 max-w-2xl mx-auto">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <img src="/logo-primary.svg" alt="Lexora" className="h-8 w-auto dark:hidden" />
+            <img src="/logo-dark.svg" alt="Lexora" className="h-8 w-auto hidden dark:block" />
             <Link href="/dashboard" className="text-xl font-black tracking-tight text-on-surface font-headline">
               Lexora
             </Link>
@@ -34,6 +36,15 @@ export default function TopNav() {
             <p className="font-bold text-sm text-on-surface truncate">{session?.user?.name}</p>
             <p className="text-xs text-on-surface-variant truncate">{session?.user?.email}</p>
           </div>
+          {session?.user?.role === "ADMIN" && (
+            <Link
+              href="/admin"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-primary hover:bg-primary-fixed/30 transition-colors"
+            >
+              <span className="material-symbols-outlined text-base">admin_panel_settings</span> Admin Panel
+            </Link>
+          )}
           <Link href="/profile" onClick={() => setMenuOpen(false)}
             className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-on-surface hover:bg-surface-container transition-colors">
             <span className="material-symbols-outlined text-base">person</span> Profile

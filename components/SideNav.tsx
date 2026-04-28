@@ -27,9 +27,8 @@ export default function SideNav() {
     <aside className="hidden lg:flex fixed top-0 left-0 z-40 h-dvh w-64 flex-col border-r border-surface-container-high bg-surface-container-lowest/80 backdrop-blur-md">
       <div className="px-6 py-7">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center text-on-primary font-black font-headline text-lg shadow-md shadow-primary/20">
-            L
-          </div>
+          <img src="/logo-primary.svg" alt="Lexora" className="h-9 w-auto dark:hidden" />
+          <img src="/logo-dark.svg" alt="Lexora" className="h-9 w-auto hidden dark:block" />
           <span className="text-2xl font-black tracking-tight text-on-surface font-headline">
             Lexora
           </span>
@@ -37,7 +36,12 @@ export default function SideNav() {
       </div>
 
       <nav className="flex-1 px-3 space-y-1">
-        {NAV_ITEMS.map(({ href, icon, label }) => {
+        {[
+          ...NAV_ITEMS,
+          ...(session?.user?.role === "ADMIN"
+            ? [{ href: "/admin", icon: "admin_panel_settings", label: "Admin" }]
+            : []),
+        ].map(({ href, icon, label }) => {
           const isActive =
             pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
           return (

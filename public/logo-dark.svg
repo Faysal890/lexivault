@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <title>LexiVault — Dark variant (LV Monogram)</title>
+  <rect x="24" y="24" width="192" height="192" rx="44" fill="#FAF7F2"></rect>
+  <path d="M74 66 L74 174 L122 174" stroke="#0E1A2B" stroke-width="18" stroke-linecap="square" stroke-linejoin="miter" fill="none"></path>
+  <path d="M112 66 L144 174 L176 66" stroke="#C77A2B" stroke-width="18" stroke-linecap="square" stroke-linejoin="miter" fill="none"></path>
+  <circle cx="120" cy="90" r="6" fill="#0E1A2B"></circle>
+</svg>

@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { UnauthorizedError } from "./errors";
+import { ForbiddenError, UnauthorizedError } from "./errors";
 
 /**
  * Resolve the current user id from the NextAuth session, or throw UnauthorizedError.
@@ -15,4 +15,11 @@ export async function requireUserId(): Promise<string> {
 export async function getUserId(): Promise<string | null> {
   const session = await getServerSession(authOptions);
   return session?.user?.id ?? null;
+}
+
+export async function requireAdminId(): Promise<string> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) throw new UnauthorizedError();
+  if (session.user.role !== "ADMIN") throw new ForbiddenError("Admin access required");
+  return session.user.id;
 }

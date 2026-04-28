@@ -4,8 +4,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"   
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 model User {
@@ -17,6 +22,7 @@ model User {
   nativeLanguage String   @default("Bengali")
   dailyGoal     Int       @default(10)
   emailVerified DateTime?
+  role          Role      @default(USER)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

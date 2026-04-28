@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import clsx from "clsx";
 
 const NAV_ITEMS = [
@@ -13,10 +14,17 @@ const NAV_ITEMS = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const navItems = [
+    ...NAV_ITEMS,
+    ...(session?.user?.role === "ADMIN"
+      ? [{ href: "/admin", icon: "admin_panel_settings", label: "Admin" }]
+      : []),
+  ];
 
   return (
     <nav className="fixed bottom-0 w-full z-50 flex justify-around items-center px-4 py-2 bg-white/90 backdrop-blur-lg shadow-2xl rounded-t-2xl border-t border-slate-100 lg:hidden">
-      {NAV_ITEMS.map(({ href, icon, label }) => {
+      {navItems.map(({ href, icon, label }) => {
         const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
         return (
           <Link

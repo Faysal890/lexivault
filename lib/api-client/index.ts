@@ -4,3 +4,4 @@ export { quizApi } from "./quiz";
 export { profileApi } from "./profile";
 export { statsApi } from "./stats";
 export { authApi } from "./auth";
+export { adminApi } from "./admin";

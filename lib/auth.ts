@@ -21,7 +21,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email.toLowerCase() },
-          select: { id: true, name: true, email: true, passwordHash: true, emailVerified: true },
+          select: { id: true, name: true, email: true, passwordHash: true, emailVerified: true, role: true },
         });
 
         if (!user) return null;
@@ -31,18 +31,22 @@ export const authOptions: NextAuthOptions = {
 
         if (!user.emailVerified) throw new Error("EmailNotVerified");
 
-        return { id: user.id, name: user.name, email: user.email };
+        return { id: user.id, name: user.name, email: user.email, role: user.role };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user) {
+        token.id = user.id;
+        token.role = (user as unknown as { role: string }).role;
+      }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
+        session.user.role = token.role as string;
       }
       return session;
     },
