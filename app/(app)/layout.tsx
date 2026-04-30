@@ -2,10 +2,12 @@ import BottomNav from "@/components/BottomNav";
 import SideNav from "@/components/SideNav";
 import TopNav from "@/components/TopNav";
 import { CoinProvider } from "@/contexts/CoinContext";
+import NavigationProgress from "@/components/NavigationProgress";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <CoinProvider>
+      <NavigationProgress />
       <div className="min-h-dvh bg-surface">
         <TopNav />
         <SideNav />

@@ -2,141 +2,275 @@ import Link from "next/link";
 import { requireUserId } from "@/lib/server/auth";
 import { statsService } from "@/lib/server/services/stats.service";
 
+const WORD_GRADIENTS = [
+  "linear-gradient(135deg,#0058be,#4d8ce0)",
+  "linear-gradient(135deg,#006c49,#00a372)",
+  "linear-gradient(135deg,#924700,#c47b00)",
+  "linear-gradient(135deg,#6d28d9,#a855f7)",
+  "linear-gradient(135deg,#b91c1c,#ef4444)",
+  "linear-gradient(135deg,#0369a1,#38bdf8)",
+];
+
 export default async function DashboardPage() {
   const userId = await requireUserId();
   const data = await statsService.dashboard(userId);
 
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return "Good morning";
-    if (h < 17) return "Good afternoon";
-    return "Good evening";
-  };
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const greetingIcon =
+    hour < 12 ? "wb_sunny" : hour < 17 ? "partly_cloudy_day" : "nights_stay";
 
-  const dailyGoal = data.user?.dailyGoal ?? 10;
+  const dailyGoal  = data.user?.dailyGoal ?? 10;
   const goalPercent = Math.min(100, Math.round((data.todayWords / dailyGoal) * 100));
   const wordsToGoal = Math.max(0, dailyGoal - data.todayWords);
+  const currentStreak = data.streak?.currentDays ?? 0;
+  const level = data.streak?.level ?? 1;
+  const firstName = data.user?.name?.split(" ")[0] ?? "Learner";
 
-  const stats = [
-    { icon: "local_fire_department", iconFill: true, bg: "bg-primary-fixed", text: "text-primary", value: data.streak?.currentDays ?? 0, label: "Day Streak" },
-    { icon: "menu_book", iconFill: true, bg: "bg-secondary-container", text: "text-secondary", value: data.wordCount, label: "Words Added" },
-    { icon: "star", iconFill: true, bg: "bg-tertiary-fixed", text: "text-tertiary", value: data.streak?.totalXP ?? 0, label: "XP Gained" },
-    { icon: "check_circle", iconFill: true, bg: "bg-surface-container", text: "text-on-surface-variant", value: data.masteredCount, label: "Mastered" },
+  const statCards = [
+    {
+      icon: "local_fire_department",
+      value: currentStreak.toLocaleString(),
+      label: "Day Streak",
+      badge: currentStreak > 0 ? "🔥 Active" : undefined,
+      bg: "linear-gradient(135deg,#0058be,#2170e4)",
+      delay: "0ms",
+    },
+    {
+      icon: "menu_book",
+      value: data.wordCount.toLocaleString(),
+      label: "Words Added",
+      bg: "linear-gradient(135deg,#006c49,#009965)",
+      delay: "80ms",
+    },
+    {
+      icon: "star",
+      value: (data.streak?.totalXP ?? 0).toLocaleString(),
+      label: "Total XP",
+      bg: "linear-gradient(135deg,#924700,#c47b00)",
+      delay: "160ms",
+    },
+    {
+      icon: "verified",
+      value: data.masteredCount.toLocaleString(),
+      label: "Mastered",
+      bg: "linear-gradient(135deg,#1c2526,#2e3132)",
+      delay: "240ms",
+    },
   ];
 
   return (
-    <div className="py-4 space-y-6 lg:py-0 lg:space-y-8">
-      {/* Header */}
-      <header className="py-2 lg:flex lg:items-end lg:justify-between lg:py-0">
-        <div>
-          <p className="text-secondary font-semibold text-xs tracking-wider uppercase mb-1">Fluid Scholar</p>
-          <h1 className="font-headline text-3xl lg:text-4xl font-extrabold text-on-surface tracking-tight">
-            {greeting()}, {data.user?.name?.split(" ")[0]}.
-          </h1>
-        </div>
-        <div className="hidden lg:flex items-center gap-3">
-          <Link href="/words/add" className="flex items-center gap-1.5 bg-surface-container-high text-on-surface px-4 py-2.5 rounded-2xl text-sm font-bold hover:bg-surface-container transition-colors">
-            <span className="material-symbols-outlined text-base">add</span> Add Word
-          </Link>
-          <Link href="/quiz" className="flex items-center gap-1.5 bg-gradient-primary text-on-primary px-4 py-2.5 rounded-2xl text-sm font-bold shadow-md shadow-primary/20 hover:shadow-lg transition-shadow">
-            <span className="material-symbols-outlined text-base">play_arrow</span> Start Quiz
-          </Link>
+    <div className="py-4 space-y-5 lg:py-0 lg:space-y-6">
+
+      {/* ── Hero Header ─────────────────────────────────────────── */}
+      <header
+        className="relative overflow-hidden rounded-3xl bg-gradient-primary p-6 lg:p-8 text-on-primary shadow-lg shadow-primary/25"
+        style={{ animation: "fade-up 0.5s ease both" }}
+      >
+        {/* Decorative blobs */}
+        <div className="absolute -top-14 -right-14 w-52 h-52 lg:w-72 lg:h-72 bg-white/10 rounded-full pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-36 h-36 lg:w-52 lg:h-52 bg-white/10 rounded-full pointer-events-none" />
+        <div className="absolute top-8 right-[28%] w-12 h-12 bg-white/5 rounded-full pointer-events-none hidden lg:block" />
+
+        <div className="relative">
+          {/* Greeting + level badge */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span
+                  className="material-symbols-outlined text-[16px] text-on-primary/70"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  {greetingIcon}
+                </span>
+                <span className="text-on-primary/70 font-semibold text-xs tracking-wider uppercase">
+                  {greeting}
+                </span>
+              </div>
+              <h1 className="font-headline text-3xl lg:text-4xl font-extrabold tracking-tight">
+                {firstName}! 👋
+              </h1>
+              <p className="text-on-primary/70 text-sm mt-1">
+                {wordsToGoal === 0
+                  ? "You crushed today's goal. Keep the streak alive! 🎉"
+                  : `${wordsToGoal} word${wordsToGoal !== 1 ? "s" : ""} left to reach your daily goal.`}
+              </p>
+            </div>
+
+            {/* Level badge */}
+            <div className="shrink-0 bg-white/15 border border-white/25 rounded-2xl px-3 py-2.5 lg:px-4 lg:py-3 text-center min-w-[60px]">
+              <span className="block text-[10px] font-bold text-on-primary/70 uppercase tracking-wide leading-none mb-1">
+                Level
+              </span>
+              <span className="font-headline text-2xl lg:text-3xl font-extrabold leading-none">
+                {level}
+              </span>
+            </div>
+          </div>
+
+          {/* Daily progress bar */}
+          <div className="mt-5 space-y-1.5">
+            <div className="flex justify-between text-xs font-semibold text-on-primary/70">
+              <span>{data.todayWords} / {dailyGoal} words today</span>
+              <span>{goalPercent}%</span>
+            </div>
+            <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white/90 rounded-full transition-all duration-1000"
+                style={{ width: `${goalPercent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* CTA buttons */}
+          <div className="mt-5 flex gap-3">
+            <Link
+              href="/quiz"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-white text-primary py-2.5 lg:px-6 rounded-2xl text-sm font-bold shadow-md active:scale-95 transition-transform hover:shadow-lg"
+            >
+              <span
+                className="material-symbols-outlined text-[18px]"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                play_arrow
+              </span>
+              Start Quiz
+            </Link>
+            <Link
+              href="/words/add"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-white/15 text-on-primary border border-white/30 py-2.5 lg:px-6 rounded-2xl text-sm font-bold active:scale-95 transition-transform hover:bg-white/25"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              Add Word
+            </Link>
+          </div>
         </div>
       </header>
 
-      {/* Stats Grid */}
+      {/* ── Stats Row ───────────────────────────────────────────── */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
-        {stats.map((s) => (
-          <div key={s.label} className="bg-surface-container-lowest p-5 lg:p-6 rounded-2xl flex flex-col justify-between aspect-square lg:aspect-auto shadow-sm">
-            <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl ${s.bg} flex items-center justify-center`}>
-              <span className={`material-symbols-outlined ${s.text} lg:text-[28px]`} style={{ fontVariationSettings: s.iconFill ? "'FILL' 1" : "'FILL' 0" }}>
+        {statCards.map((s) => (
+          <div
+            key={s.label}
+            className="relative overflow-hidden rounded-2xl p-4 lg:p-5 flex flex-col justify-between min-h-[120px] lg:min-h-[140px] shadow-md"
+            style={{ background: s.bg, animation: `fade-up 0.5s ease ${s.delay} both` }}
+          >
+            <div className="absolute -top-6 -right-6 w-20 h-20 bg-white/10 rounded-full pointer-events-none" />
+            <div className="flex items-start justify-between">
+              <span
+                className="material-symbols-outlined text-white/90 text-2xl lg:text-[28px]"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
                 {s.icon}
               </span>
+              {s.badge && (
+                <span className="text-[9px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full">
+                  {s.badge}
+                </span>
+              )}
             </div>
-            <div className="lg:mt-6">
-              <span className="font-headline text-3xl lg:text-4xl font-extrabold text-on-surface">{s.value.toLocaleString()}</span>
-              <p className="text-on-surface-variant text-sm font-medium">{s.label}</p>
+            <div>
+              <div className="font-headline text-3xl lg:text-4xl font-extrabold text-white leading-none">
+                {s.value}
+              </div>
+              <div className="text-white/70 text-xs font-semibold mt-1">{s.label}</div>
             </div>
           </div>
         ))}
       </section>
 
-      {/* Continue Learning + Recent Words */}
-      <div className="space-y-6 lg:grid lg:grid-cols-5 lg:gap-6 lg:space-y-0">
-        {/* Continue Learning */}
-        <section className="relative overflow-hidden rounded-3xl p-6 lg:p-8 bg-surface-container-lowest shadow-sm lg:col-span-2">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-fixed/20 to-transparent pointer-events-none" />
-          <div className="relative space-y-4 lg:h-full lg:flex lg:flex-col">
-            <div>
-              <h2 className="font-headline text-xl lg:text-2xl font-bold text-on-surface">
-                {wordsToGoal === 0 ? "Daily goal achieved! 🎉" : "Ready for your next set?"}
-              </h2>
-              <p className="text-on-surface-variant text-sm mt-1">
-                {wordsToGoal === 0
-                  ? "You've hit your daily target. Keep the streak alive!"
-                  : `You're ${wordsToGoal} words away from today's goal.`}
-              </p>
-            </div>
-            <div className="space-y-2 lg:flex-1 lg:flex lg:flex-col lg:justify-end">
-              <div className="flex justify-between text-xs font-semibold text-on-surface-variant">
-                <span>{data.todayWords} / {dailyGoal} words today</span>
-                <span>{goalPercent}%</span>
-              </div>
-              <div className="h-2.5 bg-surface-container-high rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-secondary rounded-full shimmer-bar transition-all duration-700"
-                  style={{ width: `${goalPercent}%` }}
-                />
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Link href="/quiz" className="flex-1 text-center py-3 bg-gradient-primary text-on-primary font-headline font-bold rounded-2xl text-sm shadow-lg shadow-primary/20 active:scale-95 transition-transform">
-                Start Quiz
-              </Link>
-              <Link href="/words/add" className="flex-1 text-center py-3 bg-surface-container-high text-on-surface font-headline font-bold rounded-2xl text-sm active:scale-95 transition-transform">
-                Add Words
-              </Link>
-            </div>
+      {/* ── Recent Words ────────────────────────────────────────── */}
+      <section
+        className="lg:bg-surface-container-lowest lg:rounded-3xl lg:p-6 lg:shadow-sm"
+        style={{ animation: "fade-up 0.5s ease 300ms both" }}
+      >
+        <div className="flex items-center justify-between px-1 lg:px-0 mb-4">
+          <div>
+            <h3 className="font-headline font-bold text-lg lg:text-xl text-on-surface">
+              Recent Words
+            </h3>
+            <p className="text-on-surface-variant text-xs mt-0.5 hidden lg:block">
+              Your latest vocabulary additions
+            </p>
           </div>
-        </section>
+          <Link
+            href="/words"
+            className="flex items-center gap-0.5 text-primary text-sm font-semibold hover:underline shrink-0"
+          >
+            View All
+            <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+          </Link>
+        </div>
 
-        {/* Recent Words */}
-        <section className="space-y-3 lg:col-span-3 lg:bg-surface-container-lowest lg:rounded-3xl lg:p-6 lg:shadow-sm lg:space-y-4">
-          <div className="flex items-center justify-between px-1 lg:px-0">
-            <h3 className="font-headline font-bold text-lg lg:text-xl text-on-surface">Recent Words</h3>
-            <Link href="/words" className="text-primary text-sm font-semibold hover:underline">View All →</Link>
+        {data.recentWords.length === 0 ? (
+          <div className="bg-surface-container-lowest rounded-2xl p-10 text-center">
+            <span
+              className="material-symbols-outlined text-5xl text-primary/40 mb-3 block"
+              style={{
+                animation: "float 3s ease-in-out infinite",
+                fontVariationSettings: "'FILL' 1",
+              }}
+            >
+              auto_stories
+            </span>
+            <p className="font-headline font-bold text-on-surface mb-1">
+              Start your vocabulary journey
+            </p>
+            <p className="text-on-surface-variant text-sm">
+              Add your first word and begin learning today.
+            </p>
+            <Link
+              href="/words/add"
+              className="mt-4 inline-flex items-center gap-2 bg-gradient-primary text-on-primary px-5 py-2.5 rounded-2xl text-sm font-bold shadow-sm"
+            >
+              <span className="material-symbols-outlined text-base">add</span>
+              Add a word
+            </Link>
           </div>
-
-          {data.recentWords.length === 0 ? (
-            <div className="bg-surface-container-lowest lg:bg-surface-container-low rounded-2xl p-8 text-center">
-              <span className="material-symbols-outlined text-4xl text-outline mb-2 block">add_circle</span>
-              <p className="text-on-surface-variant text-sm">No words yet. Add your first word!</p>
-              <Link href="/words/add" className="mt-4 inline-block text-primary font-bold text-sm">Add a word →</Link>
-            </div>
-          ) : (
-            <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
-              {data.recentWords.map((w) => (
-                <div key={w.id} className="bg-surface-container-lowest lg:bg-surface-container-low p-4 rounded-2xl flex items-center justify-between shadow-sm lg:shadow-none hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-primary-fixed flex items-center justify-center font-bold text-primary font-headline text-sm shrink-0">
-                      {w.englishWord.slice(0, 2)}
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-bold text-on-surface text-sm truncate">{w.englishWord}</h4>
-                      <p className="text-xs text-on-surface-variant italic truncate">{w.meaning.slice(0, 40)}{w.meaning.length > 40 ? "…" : ""}</p>
-                    </div>
+        ) : (
+          <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
+            {data.recentWords.map((w, i) => (
+              <div
+                key={w.id}
+                className="group bg-surface-container-lowest p-4 rounded-2xl flex items-center justify-between shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-200"
+                style={{ animation: `fade-up 0.45s ease ${380 + i * 55}ms both` }}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white font-headline text-sm shrink-0 shadow-sm"
+                    style={{ background: WORD_GRADIENTS[i % WORD_GRADIENTS.length] }}
+                  >
+                    {w.englishWord.slice(0, 2).toUpperCase()}
                   </div>
-                  {(w.wordStats?.correctCount ?? 0) >= 3 ? (
-                    <span className="material-symbols-outlined text-secondary shrink-0 ml-2" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                  ) : (
-                    <span className="material-symbols-outlined text-outline shrink-0 ml-2">schedule</span>
-                  )}
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-on-surface text-sm truncate">
+                      {w.englishWord}
+                    </h4>
+                    <p className="text-xs text-on-surface-variant italic truncate">
+                      {w.meaning.length > 42
+                        ? w.meaning.slice(0, 42) + "…"
+                        : w.meaning}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+                {(w.wordStats?.correctCount ?? 0) >= 3 ? (
+                  <span
+                    className="material-symbols-outlined text-secondary shrink-0 ml-2"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    check_circle
+                  </span>
+                ) : (
+                  <span className="material-symbols-outlined text-outline shrink-0 ml-2 group-hover:text-primary transition-colors">
+                    schedule
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

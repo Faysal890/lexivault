@@ -94,6 +94,11 @@
     50% { transform: translateY(-12px) rotate(var(--tw-rotate, 0deg)); }
   }
 
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   @keyframes bounce-dot {
     0%, 100% {
       transform: translateY(0) scale(1);
