@@ -1,5 +1,5 @@
 {
-  "name": "lexora",
+  "name": "lexivault",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -12,17 +12,18 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
     "@prisma/client": "^5.14.0",
-    "@tanstack/react-query": "^5.45.1",
     "@types/nodemailer": "^8.0.0",
+    "@upstash/redis": "^1.37.0",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "exceljs": "^4.4.0",
     "framer-motion": "^11.2.12",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
-    "lucide-react": "^0.395.0",
-    "next": "14.2.3",
+    "next": "^14.2.35",
     "next-auth": "^4.24.7",
     "nodemailer": "^7.0.13",
     "react": "^18",
@@ -30,7 +31,6 @@
     "react-hot-toast": "^2.4.1",
     "recharts": "^2.12.7",
     "tailwind-merge": "^2.3.0",
-    "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

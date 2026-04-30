@@ -12,23 +12,30 @@ export const generateQuizQuerySchema = z.object({
 });
 export type GenerateQuizQuery = z.infer<typeof generateQuizQuerySchema>;
 
+// Mirror the upper bound on generateQuizQuerySchema.size — keep submissions in line with
+// what the server hands out. Cap individual answer/option lengths so a malicious client
+// can't ship a multi-megabyte payload through the JSON parser.
+const QUIZ_MAX_QUESTIONS = 50;
+const QUIZ_ANSWER_MAX = 500;
+
 export const submitQuizSchema = z.object({
   quizType: z.enum(QUIZ_TYPES).default("mixed"),
-  score: z.number().int().min(0),
-  totalQuestions: z.number().int().min(1),
-  timeTaken: z.number().int().min(0).optional(),
+  score: z.number().int().min(0).max(QUIZ_MAX_QUESTIONS),
+  totalQuestions: z.number().int().min(1).max(QUIZ_MAX_QUESTIONS),
+  timeTaken: z.number().int().min(0).max(86_400).optional(), // 24h sanity cap
   questions: z
     .array(
       z.object({
-        wordId: z.string().min(1),
+        wordId: z.string().min(1).max(64),
         questionType: z.enum(QUESTION_TYPES),
-        userAnswer: z.string().optional().default(""),
-        correctAnswer: z.string(),
+        userAnswer: z.string().max(QUIZ_ANSWER_MAX).optional().default(""),
+        correctAnswer: z.string().max(QUIZ_ANSWER_MAX),
         isCorrect: z.boolean(),
-        options: z.array(z.string()).optional(),
+        options: z.array(z.string().max(QUIZ_ANSWER_MAX)).max(10).optional(),
       })
     )
-    .min(1),
+    .min(1)
+    .max(QUIZ_MAX_QUESTIONS),
 });
 export type SubmitQuizInput = z.infer<typeof submitQuizSchema>;
 
@@ -45,4 +52,6 @@ export interface QuizQuestionDto {
 export interface QuizSubmitResultDto {
   quizId: string;
   xpGained: number;
+  coinsEarned: number;
+  newCoinBalance?: number;
 }

@@ -54,6 +54,7 @@ export const adminRepo = {
           role: true,
           emailVerified: true,
           createdAt: true,
+          coins: true,
           _count: { select: { words: true, quizzes: true } },
         },
       }),

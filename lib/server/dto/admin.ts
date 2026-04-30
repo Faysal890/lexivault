@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 export const adminListUsersQuerySchema = z.object({
-  page:   z.coerce.number().int().min(1).default(1),
+  page:   z.coerce.number().int().min(1).max(10_000).default(1),
   limit:  z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().optional().default(""),
+  search: z.string().max(100).optional().default(""),
   role:   z.enum(["USER", "ADMIN"]).optional(),
 });
 export type AdminListUsersQuery = z.infer<typeof adminListUsersQuerySchema>;
@@ -14,10 +14,10 @@ export const adminUpdateRoleSchema = z.object({
 export type AdminUpdateRoleInput = z.infer<typeof adminUpdateRoleSchema>;
 
 export const adminListWordsQuerySchema = z.object({
-  page:   z.coerce.number().int().min(1).default(1),
+  page:   z.coerce.number().int().min(1).max(10_000).default(1),
   limit:  z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().optional().default(""),
-  userId: z.string().optional(),
+  search: z.string().max(100).optional().default(""),
+  userId: z.string().max(64).optional(),
 });
 export type AdminListWordsQuery = z.infer<typeof adminListWordsQuerySchema>;
 
@@ -30,6 +30,7 @@ export interface AdminUserRowDto {
   createdAt: Date;
   wordCount: number;
   quizCount: number;
+  coins: number;
 }
 
 export interface AdminUserDetailDto {

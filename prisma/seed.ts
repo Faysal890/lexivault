@@ -19,15 +19,31 @@ async function main() {
 
   const passwordHash = await bcrypt.hash("password123", 12);
 
+  await prisma.appSettings.upsert({
+    where: { id: "singleton" },
+    update: { dailyQuizCoins: 20 },
+    create: { id: "singleton", newUserCoins: 50, generationCost: 10, dailyQuizCoins: 20 },
+  });
+
+  await prisma.coinPackage.createMany({
+    data: [
+      { name: "Starter Pack", coins: 500, priceUsd: 50 },
+      { name: "Value Pack", coins: 2000, priceUsd: 150 },
+      { name: "Pro Pack", coins: 10000, priceUsd: 500 },
+    ],
+    skipDuplicates: true,
+  });
+
   const user = await prisma.user.upsert({
-    where: { email: "demo@lexora.app" },
+    where: { email: "demo@lexivault.app" },
     update: {},
     create: {
       name: "Alex Rahman",
-      email: "demo@lexora.app",
+      email: "demo@lexivault.app",
       passwordHash,
       nativeLanguage: "Bengali",
       dailyGoal: 10,
+      coins: 50,
       streak: {
         create: {
           currentDays: 12,
@@ -40,7 +56,7 @@ async function main() {
     },
   });
 
-  console.log(`✅ Demo user: demo@lexora.app / password123`);
+  console.log(`✅ Demo user: demo@lexivault.app / password123`);
 
   for (const w of sampleWords) {
     const existing = await prisma.word.findFirst({ where: { userId: user.id, englishWord: w.englishWord } });

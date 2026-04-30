@@ -19,8 +19,8 @@ export const updateWordSchema = z.object({
 export type UpdateWordInput = z.infer<typeof updateWordSchema>;
 
 export const listWordsQuerySchema = z.object({
-  q: z.string().optional().default(""),
-  tag: z.string().optional().default(""),
+  q: z.string().max(100).optional().default(""),
+  tag: z.string().max(50).optional().default(""),
 });
 export type ListWordsQuery = z.infer<typeof listWordsQuerySchema>;
 
@@ -30,6 +30,7 @@ export interface WordWithStatsDto {
   englishWord: string;
   meaning: string;
   exampleSentence: string | null;
+  exampleSentenceTranslation: string | null;
   difficultyLevel: number;
   tags: string;
   createdAt: Date;

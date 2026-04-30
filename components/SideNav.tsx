@@ -3,18 +3,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import clsx from "clsx";
+import { useCoins } from "@/contexts/CoinContext";
 
 const NAV_ITEMS = [
   { href: "/dashboard", icon: "home", label: "Home" },
   { href: "/words", icon: "menu_book", label: "Words" },
   { href: "/quiz", icon: "psychology", label: "Quiz" },
   { href: "/stats", icon: "show_chart", label: "Stats" },
+  { href: "/store", icon: "storefront", label: "Store" },
   { href: "/profile", icon: "person", label: "Profile" },
 ];
 
 export default function SideNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { coins } = useCoins();
+
   const initials =
     session?.user?.name
       ?.split(" ")
@@ -27,13 +31,22 @@ export default function SideNav() {
     <aside className="hidden lg:flex fixed top-0 left-0 z-40 h-dvh w-64 flex-col border-r border-surface-container-high bg-surface-container-lowest/80 backdrop-blur-md">
       <div className="px-6 py-7">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <img src="/logo-primary.svg" alt="Lexora" className="h-9 w-auto dark:hidden" />
-          <img src="/logo-dark.svg" alt="Lexora" className="h-9 w-auto hidden dark:block" />
+          <img src="/logo-primary.svg" alt="LexiVault" className="h-9 w-auto dark:hidden" />
+          <img src="/logo-dark.svg" alt="LexiVault" className="h-9 w-auto hidden dark:block" />
           <span className="text-2xl font-black tracking-tight text-on-surface font-headline">
-            Lexora
+            LexiVault
           </span>
         </Link>
       </div>
+
+      {coins !== null && (
+        <div className="mx-3 mb-2">
+          <Link href="/store" className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-tertiary-fixed/30 hover:bg-tertiary-fixed/50 transition-colors">
+            <span className="material-symbols-outlined text-[18px] text-tertiary" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+            <span className="text-sm font-bold text-tertiary">{coins.toLocaleString()} coins</span>
+          </Link>
+        </div>
+      )}
 
       <nav className="flex-1 px-3 space-y-1">
         {[

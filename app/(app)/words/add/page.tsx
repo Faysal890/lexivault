@@ -3,12 +3,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { wordsApi, ApiClientError } from "@/lib/api-client";
+import { wordsApi } from "@/lib/api-client";
 
 export default function AddWordPage() {
   const router = useRouter();
-  const [loadingState, setLoadingState] = useState<"idle" | "saving" | "generating">("idle");
-  const loading = loadingState !== "idle";
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     englishWord: "",
     meaning: "",
@@ -23,26 +22,22 @@ export default function AddWordPage() {
       toast.error("Word and meaning are required");
       return;
     }
-    setLoadingState("saving");
+    setSaving(true);
     try {
-      const created = await wordsApi.create(form);
-      if (!form.exampleSentence.trim()) {
-        setLoadingState("generating");
-        try {
-          await wordsApi.generateExample(created.id);
-        } catch (err) {
-          if (err instanceof ApiClientError && err.status === 429) {
-            toast("AI quota exceeded — example not generated. Try again later.", { icon: "⚠️" });
-          }
-        }
-      }
-      toast.success("Word added! 🎉");
-      router.refresh();
+      await wordsApi.create({
+        englishWord: form.englishWord,
+        meaning: form.meaning,
+        exampleSentence: form.exampleSentence,
+        difficultyLevel: form.difficultyLevel,
+        tags: form.tags,
+      });
+      toast.success("Word added!");
       router.push("/words");
+      router.refresh();
     } catch {
       toast.error("Failed to add word");
     } finally {
-      setLoadingState("idle");
+      setSaving(false);
     }
   };
 
@@ -63,7 +58,7 @@ export default function AddWordPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-6">
-        {/* English Word */}
+        {/* Word Details */}
         <div className="bg-surface-container-lowest rounded-3xl p-5 lg:p-7 space-y-4">
           <h2 className="font-headline font-bold text-on-surface text-sm uppercase tracking-wider text-outline">Word Details</h2>
           <div>
@@ -74,7 +69,7 @@ export default function AddWordPage() {
                 onChange={(e) => setForm({ ...form, englishWord: e.target.value })}
                 placeholder="e.g. Ephemeral"
                 className="input-field flex-1"
-                disabled={loading}
+                disabled={saving}
               />
               <button
                 type="button"
@@ -95,19 +90,21 @@ export default function AddWordPage() {
                 placeholder="Type the meaning in your native language..."
                 className="input-field resize-none"
                 rows={3}
-                disabled={loading}
+                disabled={saving}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1.5">Example Sentence <span className="text-outline font-normal">(optional)</span></label>
+              <label className="block text-sm font-semibold mb-1.5">
+                Example Sentence <span className="text-outline font-normal">(optional)</span>
+              </label>
               <textarea
                 value={form.exampleSentence}
                 onChange={(e) => setForm({ ...form, exampleSentence: e.target.value })}
-                placeholder="e.g. The beauty of a sunset is ephemeral."
+                placeholder="You can generate one from your word list after saving"
                 className="input-field resize-none"
                 rows={3}
-                disabled={loading}
+                disabled={saving}
               />
             </div>
           </div>
@@ -125,7 +122,8 @@ export default function AddWordPage() {
                   key={v}
                   type="button"
                   onClick={() => setForm({ ...form, difficultyLevel: v })}
-                  className={`py-2.5 lg:py-3 rounded-xl font-bold text-sm border-2 transition-all ${form.difficultyLevel === v ? c : "border-transparent bg-surface-container-high text-on-surface-variant hover:bg-surface-container"}`}
+                  disabled={saving}
+                  className={`py-2.5 lg:py-3 rounded-xl font-bold text-sm border-2 transition-all disabled:opacity-60 ${form.difficultyLevel === v ? c : "border-transparent bg-surface-container-high text-on-surface-variant hover:bg-surface-container"}`}
                 >
                   {l}
                 </button>
@@ -141,19 +139,17 @@ export default function AddWordPage() {
               onChange={(e) => setForm({ ...form, tags: e.target.value })}
               placeholder="e.g. academic, IELTS, business (comma separated)"
               className="input-field"
-              disabled={loading}
+              disabled={saving}
             />
           </div>
         </div>
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={saving}
           className="btn-primary flex items-center justify-center gap-2 disabled:opacity-60 lg:max-w-md lg:mx-auto"
         >
-          {loadingState === "generating" ? (
-            <><span className="material-symbols-outlined animate-spin">auto_awesome</span> Generating example...</>
-          ) : loadingState === "saving" ? (
+          {saving ? (
             <><span className="material-symbols-outlined animate-spin">refresh</span> Saving...</>
           ) : (
             <><span className="material-symbols-outlined">add_circle</span> Add Word</>

@@ -13,6 +13,20 @@ enum Role {
   ADMIN
 }
 
+enum CoinTransactionType {
+  PURCHASE
+  GENERATION
+  ADMIN_GRANT
+  NEW_USER_BONUS
+  QUIZ_REWARD
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -26,6 +40,8 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  coins         Int       @default(0)
+
   words         Word[]
   quizzes       Quiz[]
   streak        Streak?
@@ -33,6 +49,8 @@ model User {
   sessions      Session[]
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  coinTransactions        CoinTransaction[]
+  orders                  Order[]
 
   @@map("users")
 }
@@ -71,7 +89,8 @@ model Word {
   userId          String
   englishWord     String
   meaning         String   // In user's native language
-  exampleSentence String?
+  exampleSentence            String?
+  exampleSentenceTranslation String?
   difficultyLevel Int      @default(1) // 1=Easy, 2=Medium, 3=Hard
   tags            String   @default("") // comma-separated tags
   createdAt       DateTime @default(now())
@@ -129,7 +148,7 @@ model QuizQuestion {
   options       String  @default("") // JSON array of options for MC
 
   quiz          Quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  word          Word    @relation(fields: [wordId], references: [id])
+  word          Word    @relation(fields: [wordId], references: [id], onDelete: Cascade)
 
   @@map("quiz_questions")
 }
@@ -174,4 +193,58 @@ model EmailVerificationToken {
 
   @@index([userId])
   @@map("email_verification_tokens")
+}
+
+model AppSettings {
+  id             String   @id @default("singleton")
+  newUserCoins   Int      @default(50)
+  generationCost Int      @default(10)
+  dailyQuizCoins Int      @default(20)
+  updatedAt      DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+model CoinPackage {
+  id          String   @id @default(cuid())
+  name        String
+  coins       Int
+  priceUsd    Int      // in cents (100 = $1.00)
+  lsVariantId String?  // Lemon Squeezy variant ID (required for checkout)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  orders      Order[]
+
+  @@map("coin_packages")
+}
+
+model CoinTransaction {
+  id          String              @id @default(cuid())
+  userId      String
+  amount      Int
+  type        CoinTransactionType
+  description String
+  lsOrderId   String?
+  createdAt   DateTime            @default(now())
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("coin_transactions")
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  userId    String
+  packageId String
+  lsOrderId String?     @unique  // Lemon Squeezy order ID, set on webhook confirmation
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package   CoinPackage @relation(fields: [packageId], references: [id])
+
+  @@index([userId])
+  @@map("orders")
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import clsx from "clsx";
 import { quizApi, ApiClientError } from "@/lib/api-client";
+import { useCoins } from "@/contexts/CoinContext";
 import type { QuizType } from "@/lib/server/dto/quiz";
 
 interface QuizQuestion {
@@ -30,6 +31,8 @@ export default function QuizPage() {
   const [quizSize, setQuizSize] = useState(10);
   const [score, setScore] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [quizResult, setQuizResult] = useState<{ xpGained: number; coinsEarned: number } | null>(null);
+  const { updateCoins } = useCoins();
 
   const startQuiz = async () => {
     setPhase("loading");
@@ -47,6 +50,7 @@ export default function QuizPage() {
       setSelected(null);
       setRevealed(false);
       setFillAnswer("");
+      setQuizResult(null);
       setPhase("active");
     } catch (e: unknown) {
       const msg = e instanceof ApiClientError ? e.message : "Error starting quiz";
@@ -71,7 +75,7 @@ export default function QuizPage() {
     if (current + 1 >= questions.length) {
       setSubmitting(true);
       try {
-        await quizApi.submit({
+        const result = await quizApi.submit({
           questions: questions.map((q, i) => ({
             wordId: q.wordId,
             questionType: q.questionType,
@@ -85,6 +89,8 @@ export default function QuizPage() {
           totalQuestions: questions.length,
           quizType,
         });
+        setQuizResult({ xpGained: result.xpGained, coinsEarned: result.coinsEarned });
+        if (result.newCoinBalance !== undefined) updateCoins(result.newCoinBalance);
       } finally { setSubmitting(false); }
       setPhase("result");
       return;
@@ -114,7 +120,7 @@ export default function QuizPage() {
 
   if (phase === "idle") return <QuizSetup quizType={quizType} setQuizType={setQuizType} quizSize={quizSize} setQuizSize={setQuizSize} onStart={startQuiz} />;
   if (phase === "loading") return <div className="py-20 text-center"><span className="material-symbols-outlined text-5xl text-primary animate-spin block mb-4">refresh</span><p className="text-on-surface-variant">Generating quiz...</p></div>;
-  if (phase === "result") return <QuizResult score={score} total={questions.length} answers={answers} quizType={quizType} onRetry={startQuiz} />;
+  if (phase === "result") return <QuizResult score={score} total={questions.length} answers={answers} quizType={quizType} coinsEarned={quizResult?.coinsEarned ?? 0} xpGained={quizResult?.xpGained ?? 0} onRetry={startQuiz} />;
 
   const q = questions[current];
   const progress = ((current) / questions.length) * 100;
@@ -175,7 +181,7 @@ export default function QuizPage() {
             else if (revealed && isSelected && !isCorrect) cls = "quiz-option quiz-option-wrong";
             else if (isSelected) cls = "quiz-option quiz-option-selected";
             return (
-              <button key={opt} onClick={() => !revealed && setSelected(opt)} className={cls}>
+              <button key={`${i}-${opt}`} onClick={() => !revealed && setSelected(opt)} className={cls}>
                 <div className="flex items-center gap-4">
                   <span className={clsx("w-9 h-9 flex items-center justify-center rounded-xl font-headline font-bold text-sm transition-colors",
                     revealed && isCorrect ? "bg-secondary text-on-secondary" :
@@ -263,8 +269,9 @@ function QuizSetup({ quizType, setQuizType, quizSize, setQuizSize, onStart }: {
   );
 }
 
-function QuizResult({ score, total, answers, quizType, onRetry }: {
-  score: number; total: number; answers: { correct: boolean; word: string }[]; quizType: string; onRetry: () => void;
+function QuizResult({ score, total, answers, quizType, coinsEarned, xpGained, onRetry }: {
+  score: number; total: number; answers: { correct: boolean; word: string }[]; quizType: string;
+  coinsEarned: number; xpGained: number; onRetry: () => void;
 }) {
   const pct = Math.round((score / total) * 100);
   const medal = pct >= 90 ? "🏆" : pct >= 70 ? "🥈" : pct >= 50 ? "🥉" : "📚";
@@ -272,6 +279,15 @@ function QuizResult({ score, total, answers, quizType, onRetry }: {
 
   return (
     <div className="py-4 space-y-6 lg:py-0 lg:space-y-8">
+      {coinsEarned > 0 && (
+        <div className="flex items-center gap-3 bg-tertiary-fixed/30 border border-tertiary/20 rounded-2xl px-5 py-4">
+          <span className="material-symbols-outlined text-tertiary text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+          <div>
+            <p className="font-bold text-on-surface text-sm">Daily quiz reward!</p>
+            <p className="text-xs text-on-surface-variant mt-0.5">You earned <span className="font-bold text-tertiary">+{coinsEarned} coins</span> for completing your first quiz today.</p>
+          </div>
+        </div>
+      )}
       <div className="lg:grid lg:grid-cols-5 lg:gap-6 space-y-6 lg:space-y-0">
         <div className="bg-surface-container-lowest rounded-3xl p-8 lg:p-10 text-center space-y-4 lg:col-span-2 lg:flex lg:flex-col lg:justify-center">
           <div className="text-6xl lg:text-7xl">{medal}</div>

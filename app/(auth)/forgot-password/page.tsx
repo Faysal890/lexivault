@@ -33,7 +33,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-dvh bg-surface flex flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-sm lg:max-w-md">
         <Link href="/" className="block text-center mb-10">
-          <span className="text-3xl lg:text-4xl font-black font-headline text-on-surface">Lexora</span>
+          <span className="text-3xl lg:text-4xl font-black font-headline text-on-surface">LexiVault</span>
         </Link>
 
         <div className="bg-surface-container-lowest rounded-3xl p-8 lg:p-10 shadow-sm">

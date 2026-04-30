@@ -118,6 +118,17 @@ export default async function AdminDashboardPage() {
           </div>
           <span className="material-symbols-outlined text-outline ml-auto">arrow_forward</span>
         </Link>
+        <Link
+          href="/admin/settings"
+          className="bg-surface-container-lowest rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4"
+        >
+          <span className="material-symbols-outlined text-secondary text-3xl">settings</span>
+          <div>
+            <h3 className="font-headline font-bold text-on-surface">Settings & Coin Store</h3>
+            <p className="text-on-surface-variant text-sm">Configure AI costs, coin packages, welcome bonus</p>
+          </div>
+          <span className="material-symbols-outlined text-outline ml-auto">arrow_forward</span>
+        </Link>
       </section>
     </div>
   );

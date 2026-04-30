@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { authApi, ApiClientError } from "@/lib/api-client";
@@ -11,10 +12,13 @@ function isValidEmail(email: string): boolean {
 }
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [verifyLoading, setVerifyLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
-  const [devVerifyUrl, setDevVerifyUrl] = useState<string | null>(null);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [code, setCode] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -46,7 +50,7 @@ export default function RegisterPage() {
     try {
       const data = await authApi.register(form);
       setRegisteredEmail(form.email.toLowerCase());
-      if (data.devVerifyUrl) setDevVerifyUrl(data.devVerifyUrl);
+      if (data.devCode) setDevCode(data.devCode);
       setDone(true);
     } catch (err: unknown) {
       const msg = err instanceof ApiClientError ? err.message : "Registration failed";
@@ -63,8 +67,8 @@ export default function RegisterPage() {
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-40 -left-32 w-[28rem] h-[28rem] rounded-full bg-white/10 blur-3xl" />
         <Link href="/" className="relative z-10 flex items-center gap-2">
-          <img src="/logo-dark.svg" alt="Lexora" className="h-10 w-auto" />
-          <span className="text-2xl font-black tracking-tight font-headline">Lexora</span>
+          <img src="/logo-dark.svg" alt="LexiVault" className="h-10 w-auto" />
+          <span className="text-2xl font-black tracking-tight font-headline">LexiVault</span>
         </Link>
         <div className="relative z-10 space-y-6 max-w-md">
           <h2 className="font-headline text-4xl font-extrabold leading-tight">Start your vocabulary journey.</h2>
@@ -82,36 +86,79 @@ export default function RegisterPage() {
       <div className="flex flex-col items-center justify-center px-6 py-12 lg:px-16">
         <div className="w-full max-w-sm lg:max-w-md">
           <Link href="/" className="flex items-center justify-center gap-2 mb-10 lg:hidden">
-            <img src="/logo-primary.svg" alt="Lexora" className="h-9 w-auto" />
-            <span className="text-3xl font-black font-headline text-on-surface">Lexora</span>
+            <img src="/logo-primary.svg" alt="LexiVault" className="h-9 w-auto" />
+            <span className="text-3xl font-black font-headline text-on-surface">LexiVault</span>
           </Link>
 
           <div className="bg-surface-container-lowest rounded-3xl p-8 lg:p-10 shadow-sm lg:bg-transparent lg:shadow-none lg:p-0">
             {done ? (
-              <div className="text-center">
-                <span className="material-symbols-outlined text-5xl text-primary block mb-4">mark_email_unread</span>
-                <h1 className="text-2xl lg:text-3xl font-bold font-headline mb-2">Check your email</h1>
-                <p className="text-on-surface-variant text-sm mb-2">
-                  We sent a verification link to
-                </p>
-                <p className="font-semibold text-on-surface text-sm mb-6 break-all">{registeredEmail}</p>
-                <p className="text-on-surface-variant text-xs mb-8">
-                  Click the link in the email to activate your account. The link expires in 24 hours.
-                </p>
-                {devVerifyUrl && (
-                  <div className="mb-6 p-3 bg-tertiary-container rounded-2xl text-left">
-                    <p className="text-xs font-semibold text-on-tertiary-container mb-2">Dev mode — email not sent</p>
-                    <a
-                      href={devVerifyUrl}
-                      className="text-xs text-primary font-semibold underline break-all"
-                    >
-                      Click here to verify your email
-                    </a>
+              <div>
+                <div className="text-center mb-6">
+                  <span className="material-symbols-outlined text-5xl text-primary block mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>mark_email_unread</span>
+                  <h1 className="text-2xl lg:text-3xl font-bold font-headline mb-2">Check your email</h1>
+                  <p className="text-on-surface-variant text-sm mb-1">
+                    We sent a 6-digit verification code to
+                  </p>
+                  <p className="font-semibold text-on-surface text-sm break-all">{registeredEmail}</p>
+                </div>
+
+                {devCode && (
+                  <div className="mb-5 p-3 bg-tertiary-container rounded-2xl text-center">
+                    <p className="text-xs font-semibold text-on-tertiary-container mb-1">Dev mode — code not emailed</p>
+                    <span className="text-2xl font-mono font-bold tracking-[0.4em] text-on-tertiary-container">{devCode}</span>
                   </div>
                 )}
-                <Link href="/login" className="text-primary font-bold hover:underline text-sm">
-                  Back to sign in
-                </Link>
+
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (code.length < 6) { toast.error("Enter the full 6-digit code"); return; }
+                    setVerifyLoading(true);
+                    try {
+                      await authApi.verifyEmail({ email: registeredEmail, code });
+                      toast.success("Email verified! Please sign in.");
+                      router.push("/login");
+                    } catch (err: unknown) {
+                      toast.error(err instanceof ApiClientError ? err.message : "Verification failed");
+                    } finally {
+                      setVerifyLoading(false);
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Verification code</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="123456"
+                      className="input-field text-center text-2xl tracking-[0.4em] font-mono"
+                      disabled={verifyLoading}
+                      autoFocus
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={verifyLoading || code.length < 6}
+                    className="btn-primary flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {verifyLoading ? (
+                      <>
+                        <span className="material-symbols-outlined animate-spin text-sm">refresh</span>
+                        Verifying…
+                      </>
+                    ) : "Verify Email"}
+                  </button>
+                </form>
+
+                <div className="mt-4 text-center">
+                  <Link href={`/verify-email?email=${encodeURIComponent(registeredEmail)}`} className="text-on-surface-variant text-sm hover:underline">
+                    Didn&apos;t receive it? Resend code
+                  </Link>
+                </div>
               </div>
             ) : (
               <>

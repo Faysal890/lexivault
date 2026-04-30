@@ -3,41 +3,67 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import clsx from "clsx";
-import { wordsApi } from "@/lib/api-client";
+import { wordsApi, ApiClientError } from "@/lib/api-client";
+import { useCoins } from "@/contexts/CoinContext";
 
 interface WordWithStats {
   id: string;
   englishWord: string;
   meaning: string;
   exampleSentence: string | null;
+  exampleSentenceTranslation?: string | null;
   difficultyLevel: number;
   tags: string;
   createdAt: Date;
   wordStats: { correctCount: number; wrongCount: number } | null;
 }
 
+interface WordGenerationState {
+  generating: boolean;
+  error: { type: "quota" | "coins" | "general"; message: string } | null;
+}
+
 const DIFF_LABELS = ["", "Easy", "Medium", "Hard"];
 const DIFF_COLORS = ["", "text-secondary bg-secondary-container", "text-tertiary bg-tertiary-fixed", "text-error bg-error-container"];
 
 async function exportToExcel(words: WordWithStats[]) {
-  const { utils, writeFile } = await import("xlsx");
-  const data = [
-    ["Word", "Meaning", "Example", "Difficulty", "Tags", "Correct", "Wrong"],
-    ...words.map(w => [
-      w.englishWord,
-      w.meaning,
-      w.exampleSentence ?? "",
-      DIFF_LABELS[w.difficultyLevel] ?? "",
-      w.tags,
-      w.wordStats?.correctCount ?? 0,
-      w.wordStats?.wrongCount ?? 0,
-    ]),
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("My Words");
+  ws.columns = [
+    { header: "Word", key: "word", width: 20 },
+    { header: "Meaning", key: "meaning", width: 30 },
+    { header: "Example", key: "example", width: 40 },
+    { header: "Difficulty", key: "difficulty", width: 12 },
+    { header: "Tags", key: "tags", width: 20 },
+    { header: "Correct", key: "correct", width: 10 },
+    { header: "Wrong", key: "wrong", width: 10 },
   ];
-  const ws = utils.aoa_to_sheet(data);
-  ws["!cols"] = [{ wch: 20 }, { wch: 30 }, { wch: 40 }, { wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }];
-  const wb = utils.book_new();
-  utils.book_append_sheet(wb, ws, "My Words");
-  writeFile(wb, "lexora-words.xlsx");
+  words.forEach((w) => {
+    ws.addRow({
+      word: w.englishWord,
+      meaning: w.meaning,
+      example: w.exampleSentence ?? "",
+      difficulty: DIFF_LABELS[w.difficultyLevel] ?? "",
+      tags: w.tags,
+      correct: w.wordStats?.correctCount ?? 0,
+      wrong: w.wordStats?.wrongCount ?? 0,
+    });
+  });
+  ws.getRow(1).font = { bold: true };
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "lexivault-words.xlsx";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function exportToPDF(words: WordWithStats[]) {
@@ -52,7 +78,7 @@ function exportToPDF(words: WordWithStats[]) {
       <td style="text-align:center">${w.wordStats?.wrongCount ?? 0}</td>
     </tr>`).join("");
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Lexora — My Vocabulary</title>
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>LexiVault — My Vocabulary</title>
     <style>
       @media print { body { margin: 0; } button { display: none; } }
       body { font-family: system-ui, sans-serif; font-size: 11pt; padding: 24px; }
@@ -64,7 +90,7 @@ function exportToPDF(words: WordWithStats[]) {
       tr:nth-child(even) td { background: #f9f9fb; }
     </style>
     </head><body>
-    <h1>Lexora — My Vocabulary</h1>
+    <h1>LexiVault — My Vocabulary</h1>
     <p>Total: ${words.length} words</p>
     <table><thead><tr>
       <th>Word</th><th>Meaning</th><th>Example</th><th>Difficulty</th><th>Tags</th><th>Correct</th><th>Wrong</th>
@@ -100,7 +126,7 @@ function exportToWord(words: WordWithStats[]) {
     <style>body{font-family:Calibri,sans-serif;font-size:11pt} h1{color:#4f46e5} table{border-collapse:collapse;width:100%} th{background:#4f46e5;color:#fff;padding:6px 8px;border:1px solid #4f46e5;font-weight:bold}</style>
     </head>
     <body>
-    <h1>Lexora — My Vocabulary</h1>
+    <h1>LexiVault — My Vocabulary</h1>
     <p style="color:#666">Total: ${words.length} words</p>
     <table>
       <thead><tr>
@@ -114,18 +140,20 @@ function exportToWord(words: WordWithStats[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "lexora-words.doc";
+  a.download = "lexivault-words.doc";
   a.click();
   URL.revokeObjectURL(url);
 }
 
 export default function WordsClient({ initialWords, tags }: { initialWords: WordWithStats[]; tags: string[] }) {
+  const { updateCoins } = useCoins();
   const [search, setSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
   const [words, setWords] = useState(initialWords);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [generationStates, setGenerationStates] = useState<Record<string, WordGenerationState>>({});
   const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -178,6 +206,41 @@ export default function WordsClient({ initialWords, tags }: { initialWords: Word
     const u = new SpeechSynthesisUtterance(word);
     u.lang = "en-US";
     speechSynthesis.speak(u);
+  };
+
+  const handleGenerate = async (wordId: string, hasExisting: boolean) => {
+    setGenerationStates((prev) => ({
+      ...prev,
+      [wordId]: { generating: true, error: null },
+    }));
+    try {
+      const result = await wordsApi.generateExample(wordId, hasExisting);
+      if (result.generated && result.sentence) {
+        setWords((prev) =>
+          prev.map((w) =>
+            w.id === wordId
+              ? { ...w, exampleSentence: result.sentence!, exampleSentenceTranslation: result.translation }
+              : w
+          )
+        );
+        setGenerationStates((prev) => ({ ...prev, [wordId]: { generating: false, error: null } }));
+        if (result.remainingCoins !== undefined) updateCoins(result.remainingCoins);
+        toast.success("Sentence generated!");
+      } else {
+        setGenerationStates((prev) => ({ ...prev, [wordId]: { generating: false, error: null } }));
+      }
+    } catch (err) {
+      let errorType: "quota" | "coins" | "general" = "general";
+      let message = "Unable to generate a sentence. Please try again in a moment.";
+      if (err instanceof ApiClientError) {
+        if (err.status === 429) { errorType = "quota"; message = "AI quota exceeded. Try again later."; }
+        else if (err.status === 402) { errorType = "coins"; message = err.message; }
+      }
+      setGenerationStates((prev) => ({
+        ...prev,
+        [wordId]: { generating: false, error: { type: errorType, message } },
+      }));
+    }
   };
 
   return (
@@ -274,7 +337,11 @@ export default function WordsClient({ initialWords, tags }: { initialWords: Word
         </div>
       ) : (
         <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
-          {filtered.map((w) => (
+          {filtered.map((w) => {
+            const genState = generationStates[w.id];
+            const isGenerating = genState?.generating ?? false;
+            const genError = genState?.error ?? null;
+            return (
             <div key={w.id} className="bg-surface-container-lowest rounded-2xl p-4 lg:p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1 min-w-0">
@@ -288,13 +355,58 @@ export default function WordsClient({ initialWords, tags }: { initialWords: Word
                     )}
                   </div>
                   <p className="text-on-surface-variant text-sm mt-0.5 italic">{w.meaning}</p>
-                  {w.exampleSentence && (
+                  {w.exampleSentence ? (
                     <div className="mt-3 pt-3 border-t border-surface-container-high">
-                      <div className="flex items-center gap-1 mb-1">
-                        <span className="material-symbols-outlined text-[14px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
-                        <span className="text-[10px] font-bold text-primary uppercase tracking-wide">Example</span>
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <div className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+                          <span className="text-[10px] font-bold text-primary uppercase tracking-wide">Example</span>
+                        </div>
+                        <button
+                          onClick={() => handleGenerate(w.id, true)}
+                          disabled={isGenerating}
+                          className="flex items-center gap-0.5 text-[10px] font-bold text-outline hover:text-primary transition-colors disabled:opacity-50"
+                          title="Regenerate (10 coins)"
+                        >
+                          <span className="material-symbols-outlined text-[12px]">{isGenerating ? "hourglass_empty" : "refresh"}</span>
+                          {isGenerating ? "..." : "Regenerate"}
+                        </button>
                       </div>
                       <p className="text-xs text-on-surface-variant italic leading-relaxed">&ldquo;{w.exampleSentence}&rdquo;</p>
+                      {w.exampleSentenceTranslation && (
+                        <p className="text-[10px] text-on-surface-variant/70 mt-1 italic">{w.exampleSentenceTranslation}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-3 pt-3 border-t border-surface-container-high">
+                      <button
+                        onClick={() => handleGenerate(w.id, false)}
+                        disabled={isGenerating}
+                        className="flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 disabled:opacity-50 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                          {isGenerating ? "hourglass_empty" : "auto_awesome"}
+                        </span>
+                        {isGenerating ? "Generating..." : "Generate sentence (10 coins)"}
+                      </button>
+                    </div>
+                  )}
+                  {genError && (
+                    <div className="mt-2 flex items-start gap-2 bg-error-container/20 border border-error/20 rounded-xl p-3">
+                      <span className="material-symbols-outlined text-error text-[16px] shrink-0 mt-0.5">warning</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-semibold text-error">Unable to generate sentence</p>
+                        <p className="text-[10px] text-on-surface-variant mt-0.5">{genError.message}</p>
+                        {genError.type === "coins" && (
+                          <Link href="/store" className="text-[10px] font-bold text-primary mt-1 inline-block hover:underline">Get coins →</Link>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setGenerationStates((prev) => ({ ...prev, [w.id]: { ...prev[w.id], error: null } }))}
+                        className="p-0.5 rounded hover:bg-error-container/30 shrink-0"
+                      >
+                        <span className="material-symbols-outlined text-[12px] text-error/60">close</span>
+                      </button>
                     </div>
                   )}
                   {w.tags && (
@@ -328,7 +440,8 @@ export default function WordsClient({ initialWords, tags }: { initialWords: Word
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

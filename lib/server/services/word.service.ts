@@ -1,7 +1,10 @@
 import { NotFoundError } from "../errors";
 import { wordRepo } from "../repositories/word.repo";
+import { userRepo } from "../repositories/user.repo";
 import { streakService } from "./streak.service";
 import { aiService } from "./ai.service";
+import { coinService } from "./coin.service";
+import { settingsService } from "./settings.service";
 import type { CreateWordInput, UpdateWordInput, ListWordsQuery } from "../dto/word";
 
 const XP_PER_WORD = 5;
@@ -54,20 +57,62 @@ export const wordService = {
     await wordRepo.delete(id);
   },
 
-  /**
-   * Generate an example sentence for the given word via AI.
-   * Returns { generated: false } when the word already has an example
-   * (we never overwrite a user-provided sentence) or when AI returned nothing.
-   */
-  async generateExample(userId: string, id: string): Promise<{ generated: boolean; sentence?: string }> {
-    const word = await wordRepo.getById(userId, id);
+  async generateExample(
+    userId: string,
+    id: string,
+    regenerate = false
+  ): Promise<{ generated: boolean; sentence?: string; translation?: string; remainingCoins?: number }> {
+    const [word, user, settings] = await Promise.all([
+      wordRepo.getById(userId, id),
+      userRepo.findById(userId),
+      settingsService.getSettings(),
+    ]);
+
     if (!word) throw new NotFoundError("Word not found");
-    if (word.exampleSentence) return { generated: false };
+    if (!regenerate && word.exampleSentence) return { generated: false };
 
-    const sentence = await aiService.exampleSentence(word.englishWord, word.meaning);
-    if (!sentence) return { generated: false };
+    // Deduct coins first to enforce the spending limit (throws InsufficientCoinsError if low).
+    const remainingCoins = await coinService.deductCoins(
+      userId,
+      settings.generationCost,
+      `Generated sentence for "${word.englishWord}"`
+    );
 
-    await wordRepo.update(id, { exampleSentence: sentence });
-    return { generated: true, sentence };
+    let result: { sentence: string; translation: string };
+    try {
+      result = await aiService.exampleSentence(
+        word.englishWord,
+        word.meaning,
+        user?.nativeLanguage ?? "Bengali",
+        regenerate ? (word.exampleSentence ?? undefined) : undefined
+      );
+    } catch (err) {
+      // AI threw — refund the user and re-throw so the route returns the right error.
+      await coinService.addCoins(
+        userId,
+        settings.generationCost,
+        "ADMIN_GRANT",
+        `Refund: AI generation failed for "${word.englishWord}"`
+      );
+      throw err;
+    }
+
+    if (!result.sentence) {
+      // AI returned empty — no usable output, refund the user.
+      const refundedBalance = await coinService.addCoins(
+        userId,
+        settings.generationCost,
+        "ADMIN_GRANT",
+        `Refund: AI returned empty for "${word.englishWord}"`
+      );
+      return { generated: false, remainingCoins: refundedBalance };
+    }
+
+    await wordRepo.update(id, {
+      exampleSentence: result.sentence,
+      exampleSentenceTranslation: result.translation || null,
+    });
+
+    return { generated: true, sentence: result.sentence, translation: result.translation, remainingCoins };
   },
 };

@@ -4,14 +4,15 @@ import type {
   RegisterInput,
   ResendVerificationInput,
   ResetPasswordInput,
+  VerifyEmailInput,
 } from "@/lib/server/dto/auth";
 
 export const authApi = {
   register: (input: RegisterInput) =>
-    apiClient.post<{ message: string; devVerifyUrl?: string }>("/auth/register", input),
+    apiClient.post<{ message: string; devCode?: string }>("/auth/register", input),
 
-  verifyEmail: (token: string) =>
-    apiClient.get<{ message: string }>("/auth/verify-email", { query: { token } }),
+  verifyEmail: (input: VerifyEmailInput) =>
+    apiClient.post<{ message: string }>("/auth/verify-email", input),
 
   resendVerification: (input: ResendVerificationInput) =>
     apiClient.post<{ message: string }>("/auth/resend-verification", input),

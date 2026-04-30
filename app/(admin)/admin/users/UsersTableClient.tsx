@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { adminApi } from "@/lib/api-client/admin";
@@ -8,6 +8,114 @@ import type { AdminUserRowDto, PaginatedDto } from "@/lib/server/dto/admin";
 interface Props {
   initialData: PaginatedDto<AdminUserRowDto>;
   initialQuery: { page: number; limit: number; search: string; role?: "USER" | "ADMIN" };
+}
+
+function CoinPopover({
+  user,
+  onUpdated,
+}: {
+  user: AdminUserRowDto;
+  onUpdated: (id: string, coins: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [action, setAction] = useState<"add" | "set">("add");
+  const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const n = parseInt(amount);
+    if (isNaN(n) || n < 0) return;
+    setLoading(true);
+    try {
+      const result =
+        action === "add"
+          ? await adminApi.grantCoins(user.id, n)
+          : await adminApi.setCoins(user.id, n);
+      onUpdated(user.id, result.coins);
+      setAmount("");
+      setOpen(false);
+    } catch {
+      // keep open on error
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-tertiary-fixed/30 hover:bg-tertiary-fixed/60 transition-colors"
+        title="Manage coins"
+      >
+        <span
+          className="material-symbols-outlined text-[13px] text-tertiary"
+          style={{ fontVariationSettings: "'FILL' 1" }}
+        >
+          toll
+        </span>
+        <span className="text-xs font-bold text-tertiary">{user.coins.toLocaleString()}</span>
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-50 bg-surface-container-lowest rounded-2xl shadow-xl border border-surface-container-high p-4 w-64">
+            <p className="text-xs font-bold text-on-surface mb-3">
+              Coins for {user.name.split(" ")[0]}
+            </p>
+            <div className="flex gap-1 mb-3">
+              <button
+                type="button"
+                onClick={() => setAction("add")}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                  action === "add"
+                    ? "bg-secondary-container text-on-secondary-container border-secondary"
+                    : "border-transparent bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                }`}
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={() => setAction("set")}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                  action === "set"
+                    ? "bg-tertiary-fixed text-tertiary border-tertiary"
+                    : "border-transparent bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                }`}
+              >
+                Set
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="flex gap-2">
+              <input
+                type="number"
+                min={0}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={action === "add" ? "Amount" : "New total"}
+                className="input-field text-xs flex-1 py-1.5"
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={loading || !amount}
+                className="px-3 py-1.5 bg-primary text-on-primary rounded-xl text-xs font-bold disabled:opacity-60 hover:bg-primary/90 transition-colors whitespace-nowrap"
+              >
+                {loading ? "..." : action === "add" ? "Grant" : "Set"}
+              </button>
+            </form>
+            <p className="text-[10px] text-on-surface-variant mt-2">
+              Current: <span className="font-bold text-tertiary">{user.coins.toLocaleString()}</span> coins
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function UsersTableClient({ initialData, initialQuery }: Props) {
@@ -44,14 +152,16 @@ export default function UsersTableClient({ initialData, initialQuery }: Props) {
     startTransition(() => load(1, search, r));
   }
 
+  function handleCoinsUpdated(userId: string, newCoins: number) {
+    setData((prev) => ({
+      ...prev,
+      items: prev.items.map((u) => (u.id === userId ? { ...u, coins: newCoins } : u)),
+    }));
+  }
+
   async function handleRoleToggle(user: AdminUserRowDto) {
     const newRole = user.role === "ADMIN" ? "USER" : "ADMIN";
-    if (
-      !window.confirm(
-        `Change ${user.name}'s role to ${newRole}?`
-      )
-    )
-      return;
+    if (!window.confirm(`Change ${user.name}'s role to ${newRole}?`)) return;
     try {
       await adminApi.updateRole(user.id, newRole);
       await load(page, search, roleFilter);
@@ -137,6 +247,7 @@ export default function UsersTableClient({ initialData, initialQuery }: Props) {
           </div>
         ) : (
           <>
+            {/* Desktop table */}
             <div className="hidden lg:block bg-surface-container-lowest rounded-3xl p-6 shadow-sm">
               <table className="w-full text-sm">
                 <thead>
@@ -145,6 +256,7 @@ export default function UsersTableClient({ initialData, initialQuery }: Props) {
                     <th className="pb-3 font-semibold">Role</th>
                     <th className="pb-3 font-semibold text-center">Words</th>
                     <th className="pb-3 font-semibold text-center">Quizzes</th>
+                    <th className="pb-3 font-semibold">Coins</th>
                     <th className="pb-3 font-semibold">Joined</th>
                     <th className="pb-3 font-semibold">Verified</th>
                     <th className="pb-3"></th>
@@ -177,6 +289,9 @@ export default function UsersTableClient({ initialData, initialQuery }: Props) {
                       </td>
                       <td className="py-3 pr-4 text-center text-on-surface">{user.wordCount}</td>
                       <td className="py-3 pr-4 text-center text-on-surface">{user.quizCount}</td>
+                      <td className="py-3 pr-4">
+                        <CoinPopover user={user} onUpdated={handleCoinsUpdated} />
+                      </td>
                       <td className="py-3 pr-4 text-on-surface-variant text-xs">
                         {new Date(user.createdAt).toLocaleDateString()}
                       </td>
@@ -224,6 +339,7 @@ export default function UsersTableClient({ initialData, initialQuery }: Props) {
               </table>
             </div>
 
+            {/* Mobile cards */}
             <div className="lg:hidden space-y-3">
               {data.items.map((user) => (
                 <div
@@ -250,9 +366,13 @@ export default function UsersTableClient({ initialData, initialQuery }: Props) {
                       {user.role}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 mt-3 text-xs text-on-surface-variant">
+                  <div className="flex items-center gap-3 mt-3 text-xs text-on-surface-variant flex-wrap">
                     <span>{user.wordCount} words</span>
                     <span>{user.quizCount} quizzes</span>
+                    <span className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px] text-tertiary" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+                      <span className="font-semibold text-tertiary">{user.coins.toLocaleString()} coins</span>
+                    </span>
                     <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
                   </div>
                   <div className="flex gap-2 mt-3 pt-3 border-t border-surface-container-high">

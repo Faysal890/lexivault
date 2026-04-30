@@ -3,6 +3,8 @@ import { wordRepo } from "../repositories/word.repo";
 import { quizRepo } from "../repositories/quiz.repo";
 import { statsRepo } from "../repositories/stats.repo";
 import { streakService } from "./streak.service";
+import { settingsService } from "./settings.service";
+import { coinService } from "./coin.service";
 import type { GenerateQuizQuery, QuestionType, QuizQuestionDto, SubmitQuizInput } from "../dto/quiz";
 
 const DAY_MS = 86_400_000;
@@ -82,9 +84,21 @@ export const quizService = {
       }
 
       if (qType === "reverse") {
-        const wrong = shuffle(allWords.filter((w: W) => w.id !== word.id))
-          .slice(0, 3)
-          .map((w: W) => w.meaning);
+        const candidates = shuffle(allWords.filter((w: W) => w.id !== word.id));
+        const seen = new Set([word.meaning]);
+        const wrong: string[] = [];
+        for (const w of candidates) {
+          if (!seen.has(w.meaning)) { seen.add(w.meaning); wrong.push(w.meaning); }
+          if (wrong.length === 3) break;
+        }
+        if (wrong.length < 1) {
+          return {
+            wordId: word.id, word: word.englishWord, meaning: word.meaning,
+            questionType: "fill_blank",
+            question: `What is the English word for: "${word.meaning}"?`,
+            correctAnswer: word.englishWord,
+          };
+        }
         return {
           wordId: word.id,
           word: word.englishWord,
@@ -96,9 +110,21 @@ export const quizService = {
         };
       }
 
-      const wrong = shuffle(allWords.filter((w: W) => w.id !== word.id))
-        .slice(0, 3)
-        .map((w: W) => w.englishWord);
+      const candidates = shuffle(allWords.filter((w: W) => w.id !== word.id));
+      const seen = new Set([word.englishWord]);
+      const wrong: string[] = [];
+      for (const w of candidates) {
+        if (!seen.has(w.englishWord)) { seen.add(w.englishWord); wrong.push(w.englishWord); }
+        if (wrong.length === 3) break;
+      }
+      if (wrong.length < 1) {
+        return {
+          wordId: word.id, word: word.englishWord, meaning: word.meaning,
+          questionType: "fill_blank",
+          question: `Which word means: "${word.meaning}"?`,
+          correctAnswer: word.englishWord,
+        };
+      }
       return {
         wordId: word.id,
         word: word.englishWord,
@@ -116,29 +142,59 @@ export const quizService = {
   async submit(userId: string, input: SubmitQuizInput) {
     if (input.questions.length === 0) throw new BadRequestError("No questions submitted");
 
-    const quiz = await quizRepo.create({
-      user: { connect: { id: userId } },
-      score: input.score,
-      totalQuestions: input.totalQuestions,
-      timeTaken: input.timeTaken ?? null,
-      quizType: input.quizType,
-      questions: {
-        create: input.questions.map((q) => ({
-          wordId: q.wordId,
-          questionType: q.questionType,
-          userAnswer: q.userAnswer ?? "",
-          correctAnswer: q.correctAnswer,
-          isCorrect: q.isCorrect,
-          options: q.options ? JSON.stringify(q.options) : "[]",
-        })),
-      },
+    // Anti-cheat: validate that every wordId belongs to this user, then recompute correctness
+    // and score on the server. The client cannot grant itself XP/coins by lying.
+    const wordIds = Array.from(new Set(input.questions.map((q) => q.wordId)));
+    const userWords = await wordRepo.findByIdsForUser(userId, wordIds);
+    if (userWords.length !== wordIds.length) {
+      throw new BadRequestError("Invalid quiz submission");
+    }
+    const userWordMap = new Map(userWords.map((w) => [w.id, w]));
+
+    const normalize = (s: string) => s.trim().toLowerCase();
+    const validatedQuestions = input.questions.map((q) => {
+      const word = userWordMap.get(q.wordId)!;
+      // Determine expected answer from question type — never trust client-supplied correctAnswer.
+      let expected: string;
+      if (q.questionType === "reverse") {
+        expected = word.meaning;
+      } else {
+        // multiple_choice and fill_blank both expect the English word
+        expected = word.englishWord;
+      }
+      const userAnswer = (q.userAnswer ?? "").trim();
+      const isCorrect = userAnswer.length > 0 && normalize(userAnswer) === normalize(expected);
+      return {
+        wordId: q.wordId,
+        questionType: q.questionType,
+        userAnswer,
+        correctAnswer: expected,
+        isCorrect,
+        options: q.options ? JSON.stringify(q.options) : "[]",
+      };
     });
 
-    const stats = await statsRepo.findManyByWordIds(input.questions.map((q) => q.wordId));
+    const validatedScore = validatedQuestions.filter((q) => q.isCorrect).length;
+    const validatedTotal = validatedQuestions.length;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const isFirstQuizToday = (await quizRepo.countQuizzesToday(userId, todayStart)) === 0;
+
+    const quiz = await quizRepo.create({
+      user: { connect: { id: userId } },
+      score: validatedScore,
+      totalQuestions: validatedTotal,
+      timeTaken: input.timeTaken ?? null,
+      quizType: input.quizType,
+      questions: { create: validatedQuestions },
+    });
+
+    const stats = await statsRepo.findManyByWordIds(wordIds);
     const wsByWord = new Map(stats.map((s) => [s.wordId, s]));
 
     await Promise.all(
-      input.questions.map((q) => {
+      validatedQuestions.map((q) => {
         const ws = wsByWord.get(q.wordId);
         if (!ws) return Promise.resolve();
         const { newEase, nextReview } = calculateNextReview(ws.correctCount, ws.easeFactor, q.isCorrect);
@@ -152,10 +208,20 @@ export const quizService = {
       })
     );
 
-    const accuracy = input.totalQuestions > 0 ? input.score / input.totalQuestions : 0;
-    const xpGain = Math.round(input.score * 10 * (accuracy >= 0.8 ? 1.5 : 1));
+    const accuracy = validatedTotal > 0 ? validatedScore / validatedTotal : 0;
+    const xpGain = Math.round(validatedScore * 10 * (accuracy >= 0.8 ? 1.5 : 1));
     await streakService.addXp(userId, xpGain);
 
-    return { quizId: quiz.id, xpGained: xpGain };
+    let coinsEarned = 0;
+    let newCoinBalance: number | undefined;
+    if (isFirstQuizToday) {
+      const settings = await settingsService.getSettings();
+      if (settings.dailyQuizCoins > 0) {
+        newCoinBalance = await coinService.addCoins(userId, settings.dailyQuizCoins, "QUIZ_REWARD", "Daily quiz reward");
+        coinsEarned = settings.dailyQuizCoins;
+      }
+    }
+
+    return { quizId: quiz.id, score: validatedScore, totalQuestions: validatedTotal, xpGained: xpGain, coinsEarned, newCoinBalance };
   },
 };

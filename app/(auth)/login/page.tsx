@@ -25,6 +25,8 @@ export default function LoginPage() {
       });
       if (result?.error === "EmailNotVerified") {
         router.push(`/verify-email?email=${encodeURIComponent(form.email.toLowerCase())}`);
+      } else if (result?.error === "TooManyAttempts") {
+        toast.error("Too many login attempts. Please wait a few minutes and try again.");
       } else if (result?.error) {
         toast.error("Invalid email or password");
       } else {
@@ -44,8 +46,8 @@ export default function LoginPage() {
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-40 -left-32 w-[28rem] h-[28rem] rounded-full bg-white/10 blur-3xl" />
         <Link href="/" className="relative z-10 flex items-center gap-2">
-          <img src="/logo-dark.svg" alt="Lexora" className="h-10 w-auto" />
-          <span className="text-2xl font-black tracking-tight font-headline">Lexora</span>
+          <img src="/logo-dark.svg" alt="LexiVault" className="h-10 w-auto" />
+          <span className="text-2xl font-black tracking-tight font-headline">LexiVault</span>
         </Link>
         <div className="relative z-10 space-y-6 max-w-md">
           <h2 className="font-headline text-4xl font-extrabold leading-tight">Master a new word every day.</h2>
@@ -61,8 +63,8 @@ export default function LoginPage() {
       <div className="flex flex-col items-center justify-center px-6 py-12 lg:px-16">
         <div className="w-full max-w-sm lg:max-w-md">
           <Link href="/" className="flex items-center justify-center gap-2 mb-10 lg:hidden">
-            <img src="/logo-primary.svg" alt="Lexora" className="h-9 w-auto" />
-            <span className="text-3xl font-black font-headline text-on-surface">Lexora</span>
+            <img src="/logo-primary.svg" alt="LexiVault" className="h-9 w-auto" />
+            <span className="text-3xl font-black font-headline text-on-surface">LexiVault</span>
           </Link>
 
           <div className="bg-surface-container-lowest rounded-3xl p-8 lg:p-10 shadow-sm lg:bg-transparent lg:shadow-none lg:p-0">
@@ -79,6 +81,8 @@ export default function LoginPage() {
                   placeholder="you@example.com"
                   className="input-field"
                   disabled={loading}
+                  autoComplete="email"
+                  required
                 />
               </div>
               <div>
@@ -90,6 +94,8 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   className="input-field"
                   disabled={loading}
+                  autoComplete="current-password"
+                  required
                 />
                 <div className="text-right mt-1">
                   <Link href="/forgot-password" className="text-sm text-primary font-semibold hover:underline">

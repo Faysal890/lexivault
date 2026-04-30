@@ -6,6 +6,7 @@ export type ErrorCode =
   | "CONFLICT"
   | "VALIDATION_ERROR"
   | "RATE_LIMITED"
+  | "INSUFFICIENT_COINS"
   | "DEPENDENCY_ERROR"
   | "INTERNAL_ERROR";
 
@@ -62,6 +63,12 @@ export class ValidationError extends AppError {
 export class RateLimitedError extends AppError {
   constructor(message = "Rate limited") {
     super("RATE_LIMITED", 429, message);
+  }
+}
+
+export class InsufficientCoinsError extends AppError {
+  constructor(message = "Not enough coins") {
+    super("INSUFFICIENT_COINS", 402, message);
   }
 }
 

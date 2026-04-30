@@ -89,6 +89,11 @@
     100% { left: 100%; }
   }
 
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(var(--tw-rotate, 0deg)); }
+    50% { transform: translateY(-12px) rotate(var(--tw-rotate, 0deg)); }
+  }
+
   .quiz-option {
     @apply flex items-center justify-between p-5 bg-surface-container-lowest border-2 border-transparent 
            rounded-2xl transition-all duration-200 text-left cursor-pointer w-full

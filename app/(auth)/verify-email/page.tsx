@@ -1,59 +1,53 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import { authApi, ApiClientError } from "@/lib/api-client";
-
-type VerifyStatus = "loading" | "success" | "error";
-type ResendStatus = "idle" | "loading" | "success" | "error";
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
-  const email = searchParams.get("email");
+  const emailFromUrl = searchParams.get("email") ?? "";
 
-  const mode = token ? "verify" : "resend";
+  const [email, setEmail] = useState(emailFromUrl);
+  const [code, setCode] = useState("");
+  const [verified, setVerified] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
 
-  const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>("loading");
-  const [verifyMessage, setVerifyMessage] = useState("");
-
-  const [resendStatus, setResendStatus] = useState<ResendStatus>("idle");
-  const [resendMessage, setResendMessage] = useState("");
-
-  useEffect(() => {
-    if (mode !== "verify") return;
-    if (!token) {
-      setVerifyStatus("error");
-      setVerifyMessage("No verification token found in the link.");
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || code.length < 6) {
+      toast.error("Please enter your email and the 6-digit code");
       return;
     }
-    authApi
-      .verifyEmail(token)
-      .then(() => setVerifyStatus("success"))
-      .catch((err: unknown) => {
-        setVerifyStatus("error");
-        setVerifyMessage(
-          err instanceof ApiClientError ? err.message : "Something went wrong. Please try again."
-        );
-      });
-  }, [token, mode]);
+    setLoading(true);
+    try {
+      await authApi.verifyEmail({ email: email.toLowerCase(), code });
+      setVerified(true);
+    } catch (err: unknown) {
+      toast.error(err instanceof ApiClientError ? err.message : "Verification failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleResend = async () => {
-    setResendStatus("loading");
-    setResendMessage("");
     if (!email) {
-      setResendStatus("error");
-      setResendMessage("No email address provided.");
+      toast.error("Please enter your email address first");
       return;
     }
+    setResendLoading(true);
     try {
-      await authApi.resendVerification({ email });
-      setResendStatus("success");
+      await authApi.resendVerification({ email: email.toLowerCase() });
+      setResendSent(true);
+      setCode("");
+      toast.success("New code sent — check your inbox");
     } catch (err: unknown) {
-      setResendStatus("error");
-      setResendMessage(
-        err instanceof ApiClientError ? err.message : "Something went wrong. Please try again."
-      );
+      toast.error(err instanceof ApiClientError ? err.message : "Could not resend. Try again.");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -61,107 +55,102 @@ export default function VerifyEmailPage() {
     <div className="min-h-dvh bg-surface flex flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-sm lg:max-w-md">
         <Link href="/" className="block text-center mb-10">
-          <span className="text-3xl lg:text-4xl font-black font-headline text-on-surface">Lexora</span>
+          <span className="text-3xl lg:text-4xl font-black font-headline text-on-surface">LexiVault</span>
         </Link>
 
         <div className="bg-surface-container-lowest rounded-3xl p-8 lg:p-10 shadow-sm text-center">
-
-          {/* ── Verify mode (token in URL) ── */}
-          {mode === "verify" && (
+          {verified ? (
             <>
-              {verifyStatus === "loading" && (
-                <>
-                  <span className="material-symbols-outlined text-5xl text-primary animate-spin block mb-4">refresh</span>
-                  <h1 className="text-xl font-bold font-headline mb-2">Verifying your email…</h1>
-                  <p className="text-on-surface-variant text-sm">Please wait a moment.</p>
-                </>
-              )}
-
-              {verifyStatus === "success" && (
-                <>
-                  <span className="material-symbols-outlined text-5xl text-secondary block mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                  <h1 className="text-xl font-bold font-headline mb-2">Email verified!</h1>
-                  <p className="text-on-surface-variant text-sm mb-6">Your account is active. You can now sign in.</p>
-                  <Link href="/login" className="btn-primary inline-flex items-center justify-center gap-2">
-                    Sign In
-                  </Link>
-                </>
-              )}
-
-              {verifyStatus === "error" && (
-                <>
-                  <span className="material-symbols-outlined text-5xl text-error block mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>error</span>
-                  <h1 className="text-xl font-bold font-headline mb-2">Verification failed</h1>
-                  <p className="text-on-surface-variant text-sm mb-6">{verifyMessage}</p>
-                  <Link href="/login" className="text-primary font-semibold hover:underline text-sm">
-                    Back to sign in
-                  </Link>
-                </>
-              )}
+              <span
+                className="material-symbols-outlined text-5xl text-secondary block mb-4"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                check_circle
+              </span>
+              <h1 className="text-xl font-bold font-headline mb-2">Email verified!</h1>
+              <p className="text-on-surface-variant text-sm mb-6">
+                Your account is active. You can now sign in.
+              </p>
+              <Link href="/login" className="btn-primary inline-flex items-center justify-center gap-2">
+                Sign In
+              </Link>
             </>
-          )}
-
-          {/* ── Resend mode (email in URL, no token) ── */}
-          {mode === "resend" && (
+          ) : (
             <>
-              {resendStatus !== "success" && (
-                <>
-                  <span className="material-symbols-outlined text-5xl text-tertiary block mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>mark_email_unread</span>
-                  <h1 className="text-xl font-bold font-headline mb-2">Verify your email</h1>
-                  <p className="text-on-surface-variant text-sm mb-2">
-                    Your account isn&apos;t verified yet. We sent a link to:
-                  </p>
-                  {email && (
-                    <p className="font-semibold text-on-surface text-sm mb-6 break-all">{email}</p>
-                  )}
-                  <p className="text-on-surface-variant text-sm mb-6">
-                    Didn&apos;t receive it? We&apos;ll send a fresh one — any previous link will be invalidated.
-                  </p>
+              <span
+                className="material-symbols-outlined text-5xl text-primary block mb-4"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                mark_email_unread
+              </span>
+              <h1 className="text-xl font-bold font-headline mb-2">Verify your email</h1>
+              <p className="text-on-surface-variant text-sm mb-6">
+                {resendSent
+                  ? "A new code has been sent. Enter it below."
+                  : "Enter the 6-digit code we sent to your email."}
+              </p>
 
-                  {resendStatus === "error" && (
-                    <p className="text-error text-sm mb-4">{resendMessage}</p>
-                  )}
-
-                  <button
-                    onClick={handleResend}
-                    disabled={resendStatus === "loading"}
-                    className="btn-primary flex items-center justify-center gap-2 disabled:opacity-60 w-full"
-                  >
-                    {resendStatus === "loading" ? (
-                      <>
-                        <span className="material-symbols-outlined animate-spin text-sm">refresh</span>
-                        Sending…
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined text-sm">send</span>
-                        Resend Verification Email
-                      </>
-                    )}
-                  </button>
-
-                  <div className="mt-4">
-                    <Link href="/login" className="text-on-surface-variant text-sm hover:underline">
-                      Back to sign in
-                    </Link>
+              <form onSubmit={handleVerify} className="space-y-4 text-left">
+                {!emailFromUrl && (
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Email</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className="input-field"
+                      disabled={loading}
+                    />
                   </div>
-                </>
-              )}
-
-              {resendStatus === "success" && (
-                <>
-                  <span className="material-symbols-outlined text-5xl text-secondary block mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>mark_email_read</span>
-                  <h1 className="text-xl font-bold font-headline mb-2">Check your inbox</h1>
-                  <p className="text-on-surface-variant text-sm mb-6">
-                    A new verification link has been sent to{" "}
-                    <span className="font-semibold text-on-surface">{email}</span>.
-                    It expires in 24 hours.
+                )}
+                {emailFromUrl && (
+                  <p className="text-sm font-semibold text-on-surface text-center break-all mb-2">
+                    {email}
                   </p>
-                  <Link href="/login" className="text-primary font-semibold hover:underline text-sm">
-                    Back to sign in
-                  </Link>
-                </>
-              )}
+                )}
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Verification code</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="123456"
+                    className="input-field text-center text-2xl tracking-[0.4em] font-mono"
+                    disabled={loading}
+                    autoFocus
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || code.length < 6}
+                  className="btn-primary flex items-center justify-center gap-2 disabled:opacity-60 w-full"
+                >
+                  {loading ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin text-sm">refresh</span>
+                      Verifying…
+                    </>
+                  ) : (
+                    "Verify Email"
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-5 flex flex-col items-center gap-2">
+                <button
+                  onClick={handleResend}
+                  disabled={resendLoading}
+                  className="text-primary text-sm font-semibold hover:underline disabled:opacity-60"
+                >
+                  {resendLoading ? "Sending…" : "Resend code"}
+                </button>
+                <Link href="/login" className="text-on-surface-variant text-sm hover:underline">
+                  Back to sign in
+                </Link>
+              </div>
             </>
           )}
         </div>

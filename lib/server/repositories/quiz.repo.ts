@@ -29,4 +29,10 @@ export const quizRepo = {
       _sum: { totalQuestions: true },
     });
   },
+
+  async countQuizzesToday(userId: string, todayStart: Date) {
+    return prisma.quiz.count({
+      where: { userId, createdAt: { gte: todayStart } },
+    });
+  },
 };

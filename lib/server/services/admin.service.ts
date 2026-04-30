@@ -28,6 +28,7 @@ export const adminService = {
       createdAt: u.createdAt,
       wordCount: u._count.words,
       quizCount: u._count.quizzes,
+      coins: u.coins,
     }));
     return {
       items,

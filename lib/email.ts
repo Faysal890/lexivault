@@ -8,7 +8,17 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM = `Lexora <${process.env.GMAIL_USER}>`;
+const FROM = `LexiVault <${process.env.GMAIL_USER}>`;
+
+// HTML-escape user-controlled values before injecting into email templates.
+function esc(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 export async function sendPasswordResetEmail(
   to: string,
@@ -18,25 +28,25 @@ export async function sendPasswordResetEmail(
   await transporter.sendMail({
     from: FROM,
     to,
-    subject: "Reset your Lexora password",
-    html: buildResetEmailHtml(resetUrl, userName),
+    subject: "Reset your LexiVault password",
+    html: buildResetEmailHtml(resetUrl, esc(userName)),
   });
 }
 
 export async function sendVerificationEmail(
   to: string,
-  verificationUrl: string,
+  code: string,
   userName: string
 ): Promise<void> {
   await transporter.sendMail({
     from: FROM,
     to,
-    subject: "Verify your Lexora email",
-    html: buildVerificationEmailHtml(verificationUrl, userName),
+    subject: "Verify your LexiVault email",
+    html: buildVerificationEmailHtml(code, esc(userName)),
   });
 }
 
-function buildVerificationEmailHtml(verificationUrl: string, userName: string): string {
+function buildVerificationEmailHtml(code: string, userName: string): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -53,7 +63,7 @@ function buildVerificationEmailHtml(verificationUrl: string, userName: string): 
                style="background:#ffffff;border-radius:24px;padding:40px;max-width:480px;width:100%;">
           <tr>
             <td style="padding-bottom:32px;text-align:center;">
-              <span style="font-size:28px;font-weight:900;color:#191c1d;">Lexora</span>
+              <span style="font-size:28px;font-weight:900;color:#191c1d;">LexiVault</span>
             </td>
           </tr>
           <tr>
@@ -62,30 +72,24 @@ function buildVerificationEmailHtml(verificationUrl: string, userName: string): 
             </td>
           </tr>
           <tr>
-            <td style="padding-bottom:32px;color:#424754;font-size:15px;line-height:1.6;">
+            <td style="padding-bottom:24px;color:#424754;font-size:15px;line-height:1.6;">
               Hi ${userName},<br/><br/>
-              Thanks for signing up for Lexora! Click the button below to verify your email
-              address and activate your account. This link expires in <strong>24 hours</strong>.
+              Thanks for signing up for LexiVault! Use the code below to verify your email
+              address and activate your account. This code expires in <strong>15 minutes</strong>.
             </td>
           </tr>
           <tr>
-            <td style="padding-bottom:32px;text-align:center;">
-              <a href="${verificationUrl}"
-                 style="display:inline-block;background:#0058be;color:#ffffff;font-weight:700;
-                        font-size:16px;padding:16px 40px;border-radius:16px;text-decoration:none;">
-                Verify Email
-              </a>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding-bottom:24px;color:#424754;font-size:13px;line-height:1.5;">
-              If the button doesn't work, copy and paste this link into your browser:<br/>
-              <a href="${verificationUrl}" style="color:#0058be;word-break:break-all;">${verificationUrl}</a>
+            <td style="padding-bottom:32px;">
+              <div style="background:#f0f4ff;border-radius:16px;padding:28px;text-align:center;">
+                <p style="margin:0 0 10px;color:#424754;font-size:14px;">Your verification code</p>
+                <span style="font-size:44px;font-weight:900;letter-spacing:10px;color:#0058be;font-family:monospace;">${code}</span>
+                <p style="margin:10px 0 0;color:#727785;font-size:12px;">Do not share this code with anyone.</p>
+              </div>
             </td>
           </tr>
           <tr>
             <td style="border-top:1px solid #e1e3e4;padding-top:24px;color:#727785;font-size:12px;line-height:1.5;">
-              If you didn't create a Lexora account, you can safely ignore this email.
+              If you didn't create a LexiVault account, you can safely ignore this email.
             </td>
           </tr>
         </table>
@@ -113,7 +117,7 @@ function buildResetEmailHtml(resetUrl: string, userName: string): string {
                style="background:#ffffff;border-radius:24px;padding:40px;max-width:480px;width:100%;">
           <tr>
             <td style="padding-bottom:32px;text-align:center;">
-              <span style="font-size:28px;font-weight:900;color:#191c1d;">Lexora</span>
+              <span style="font-size:28px;font-weight:900;color:#191c1d;">LexiVault</span>
             </td>
           </tr>
           <tr>
@@ -124,7 +128,7 @@ function buildResetEmailHtml(resetUrl: string, userName: string): string {
           <tr>
             <td style="padding-bottom:32px;color:#424754;font-size:15px;line-height:1.6;">
               Hi ${userName},<br/><br/>
-              We received a request to reset the password for your Lexora account.
+              We received a request to reset the password for your LexiVault account.
               Click the button below to choose a new password. This link expires in
               <strong>1 hour</strong>.
             </td>

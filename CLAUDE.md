@@ -32,15 +32,29 @@ After any `prisma/schema.prisma` change, always run `npm run db:push` to apply t
 
 **Route groups:**
 - `app/(auth)/` — login, register, forgot-password, reset-password, verify-email (public)
-- `app/(app)/` — dashboard, words, quiz, stats, profile (protected via `middleware.ts`)
+- `app/(app)/` — dashboard, words, quiz, stats, profile, store (protected via `middleware.ts`)
+- `app/(admin)/` — admin panel, users, words, settings (requires `ADMIN` role via `requireAdminId()`)
 
-**Authentication:** JWT strategy via NextAuth. `lib/auth.ts` holds `authOptions`. JWT callback puts `user.id` on the token; session callback exposes it as `session.user.id`. Use `requireUserId()` from `lib/server/auth.ts` in services and routes — it throws `UnauthorizedError` (handled by the `handle()` wrapper to a 401 envelope). `middleware.ts` protects `/dashboard`, `/words`, `/quiz`, `/stats`, `/profile` page routes.
+**Authentication:** JWT strategy via NextAuth. `lib/auth.ts` holds `authOptions`. JWT callback puts `user.id` on the token; session callback exposes it as `session.user.id`. Use `requireUserId()` from `lib/server/auth.ts` in services and routes — it throws `UnauthorizedError` (handled by the `handle()` wrapper to a 401 envelope). `requireAdminId()` additionally checks `role === ADMIN` and throws `ForbiddenError`. `middleware.ts` protects `/dashboard`, `/words`, `/quiz`, `/stats`, `/profile`, `/store`, `/admin` page routes.
 
 **Database access:** Always import `prisma` from `lib/prisma.ts` — singleton that prevents connection exhaustion in dev. Repositories are the only place that imports it; services and routes never touch Prisma directly.
 
 **Spaced Repetition (SM-2):** `lib/server/services/quiz.service.ts` (`calculateNextReview`). Correct answers extend the review interval exponentially via `easeFactor`; wrong answers reset to 1 day. `quizService.generate` sorts words by due date then accuracy, capped at 100 words.
 
 **Gamification:** `Streak` model tracks `currentDays`, `longestDays`, `totalXP`, `level`. XP is awarded by `streakService.addXp` — +5 on word creation, `score × 10` (×1.5 if accuracy ≥ 80%) on quiz submit. Level = `floor(totalXP / 100) + 1`.
+
+**Coin economy:** `User.coins` is the balance. `coinService` in `lib/server/services/coin.service.ts` handles credit (`addCoins`), debit (`deductCoins` — throws `InsufficientCoinsError` → HTTP 402 if balance too low), and admin override (`setCoins`). Every change creates a `CoinTransaction` ledger row. Coin events:
+- New user registration → `settings.newUserCoins` credited (type `NEW_USER_BONUS`)
+- AI sentence generation → `settings.generationCost` debited (type `GENERATION`)
+- First quiz of the day → `settings.dailyQuizCoins` credited (type `QUIZ_REWARD`)
+- Admin grant → `ADMIN_GRANT`
+- Store purchase → `PURCHASE` (credited by Lemon Squeezy webhook)
+
+`CoinContext` (`contexts/CoinContext.tsx`) holds the live balance in React state; `TopNav` and `SideNav` display it. After generation the route returns `remainingCoins` so client components call `updateCoins()` immediately without a refetch.
+
+**Coin store (Lemon Squeezy):** `storeService` creates a Lemon Squeezy hosted checkout. `CoinPackage` rows are managed at `/admin/settings`; each needs a `lsVariantId` (Lemon Squeezy variant ID) to enable checkout. The webhook at `POST /api/v1/store/webhook` verifies the `x-signature` header with HMAC-SHA256 and credits coins on `order_created`. The webhook route uses `req.arrayBuffer()` (raw body, no JSON parsing) — do not add `bodyParser`.
+
+**Admin settings:** `AppSettings` is a singleton row (id = `"singleton"`). `settingsService` / `settingsRepo` use `upsert` to guarantee it always exists. Admins configure `newUserCoins`, `generationCost`, `dailyQuizCoins` at `/admin/settings`. The same page manages `CoinPackage` CRUD.
 
 **Export feature:** `app/(app)/words/WordsClient.tsx` exports words to Excel (via `xlsx` — dynamic import), PDF (browser print window via `window.open`), and Word (HTML blob saved as `.doc`). Exports respect active search/tag filters.
 
@@ -86,9 +100,12 @@ Required in `.env`:
 DATABASE_URL=postgresql://...
 NEXTAUTH_SECRET=<random 32-byte base64>
 NEXTAUTH_URL=http://localhost:3000
-NEXT_PUBLIC_APP_URL=http://localhost:3000   # Used to build password-reset links
-GMAIL_USER=you@gmail.com                    # Gmail address for transactional email (nodemailer)
-GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx    # Gmail App Password (not your login password)
+NEXT_PUBLIC_APP_URL=http://localhost:3000        # Used to build password-reset links and store redirects
+GMAIL_USER=you@gmail.com                         # Gmail address for transactional email (nodemailer)
+GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx           # Gmail App Password (not your login password)
+LEMONSQUEEZY_API_KEY=...                         # Lemon Squeezy API key (for creating checkouts)
+LEMONSQUEEZY_STORE_ID=...                        # Lemon Squeezy store ID
+LEMONSQUEEZY_WEBHOOK_SECRET=...                  # Lemon Squeezy webhook signing secret
 ```
 
 ## Key Constraints
@@ -99,3 +116,7 @@ GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx    # Gmail App Password (not your login p
 - New API endpoints go under `app/api/v1/` and follow the controller-service-repository split. Wrap handlers in `handle()` so thrown `AppError`s become envelope responses.
 - Client components must use `lib/api-client` (not raw `fetch`) so error envelopes are unwrapped consistently.
 - `@tanstack/react-query` and `lucide-react` are in `package.json` but unused — do not import them.
+- `InsufficientCoinsError` maps to HTTP 402. Client components check `err.status === 402` and show a "Get more coins →" link to `/store`.
+- `CoinTransaction.amount` is always positive for credits and negative for debits — do not flip the sign at the service layer.
+- The Lemon Squeezy webhook must receive the raw request body. The route at `app/api/v1/store/webhook/route.ts` uses `req.arrayBuffer()` — never wrap it with a body-parsing middleware.
+- `AppSettings` singleton is always fetched via `settingsService.getSettings()` (upsert guarantees the row exists). Never query `AppSettings` directly from a service or route.

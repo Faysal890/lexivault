@@ -8,13 +8,19 @@ import type { AdminUserDetailDto } from "@/lib/server/dto/admin";
 interface Props {
   user: AdminUserDetailDto;
   adminId: string;
+  initialCoins?: number;
 }
 
-export default function UserDetailClient({ user: initialUser, adminId }: Props) {
+export default function UserDetailClient({ user: initialUser, adminId, initialCoins = 0 }: Props) {
   const router = useRouter();
   const [user, setUser] = useState(initialUser);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [coins, setCoins] = useState(initialCoins);
+  const [coinAmount, setCoinAmount] = useState("");
+  const [coinReason, setCoinReason] = useState("");
+  const [coinAction, setCoinAction] = useState<"add" | "set">("add");
+  const [coinLoading, setCoinLoading] = useState(false);
   const isSelf = user.id === adminId;
 
   async function handleRoleToggle() {
@@ -29,6 +35,26 @@ export default function UserDetailClient({ user: initialUser, adminId }: Props) 
       setError("Failed to update role.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCoinAction(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = parseInt(coinAmount);
+    if (isNaN(amount) || amount < 0) return;
+    setCoinLoading(true);
+    setError(null);
+    try {
+      const result = coinAction === "add"
+        ? await adminApi.grantCoins(user.id, amount, coinReason || undefined)
+        : await adminApi.setCoins(user.id, amount, coinReason || undefined);
+      setCoins(result.coins);
+      setCoinAmount("");
+      setCoinReason("");
+    } catch {
+      setError("Failed to update coins.");
+    } finally {
+      setCoinLoading(false);
     }
   }
 
@@ -140,12 +166,13 @@ export default function UserDetailClient({ user: initialUser, adminId }: Props) 
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {[
           { icon: "menu_book", label: "Words", value: user.wordCount, color: "text-primary" },
           { icon: "psychology", label: "Quizzes", value: user.quizCount, color: "text-secondary" },
           { icon: "local_fire_department", label: "Streak", value: `${user.streak?.currentDays ?? 0}d`, color: "text-tertiary" },
           { icon: "bolt", label: "XP / Level", value: `${user.streak?.totalXP ?? 0} / Lv${user.streak?.level ?? 1}`, color: "text-on-surface-variant" },
+          { icon: "toll", label: "Coins", value: coins.toLocaleString(), color: "text-tertiary" },
         ].map((stat) => (
           <div key={stat.label} className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm flex flex-col gap-1">
             <span className={`material-symbols-outlined ${stat.color}`} style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -155,6 +182,60 @@ export default function UserDetailClient({ user: initialUser, adminId }: Props) 
             <span className="text-on-surface-variant text-xs">{stat.label}</span>
           </div>
         ))}
+      </div>
+
+      {/* Coin Management */}
+      <div className="bg-surface-container-lowest rounded-2xl p-5 shadow-sm space-y-4">
+        <h3 className="font-headline font-bold text-on-surface">Coin Management</h3>
+        <p className="text-sm text-on-surface-variant">Current balance: <span className="font-bold text-tertiary">{coins.toLocaleString()} coins</span></p>
+        <form onSubmit={handleCoinAction} className="space-y-3">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setCoinAction("add")}
+              className={`flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all ${coinAction === "add" ? "bg-secondary-container text-on-secondary-container border-secondary" : "border-transparent bg-surface-container text-on-surface-variant hover:bg-surface-container-high"}`}
+            >
+              Add Coins
+            </button>
+            <button
+              type="button"
+              onClick={() => setCoinAction("set")}
+              className={`flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all ${coinAction === "set" ? "bg-tertiary-fixed text-tertiary border-tertiary" : "border-transparent bg-surface-container text-on-surface-variant hover:bg-surface-container-high"}`}
+            >
+              Set Balance
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-on-surface-variant">{coinAction === "add" ? "Amount to Add" : "New Balance"}</label>
+              <input
+                type="number"
+                min={0}
+                value={coinAmount}
+                onChange={(e) => setCoinAmount(e.target.value)}
+                placeholder="0"
+                className="input-field text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-on-surface-variant">Reason (optional)</label>
+              <input
+                value={coinReason}
+                onChange={(e) => setCoinReason(e.target.value)}
+                placeholder="e.g. Promo reward"
+                className="input-field text-sm"
+              />
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={coinLoading || !coinAmount}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-xl text-sm font-bold disabled:opacity-60 hover:bg-primary/90 transition-colors"
+          >
+            <span className="material-symbols-outlined text-base">toll</span>
+            {coinLoading ? "Updating..." : coinAction === "add" ? "Grant Coins" : "Set Balance"}
+          </button>
+        </form>
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

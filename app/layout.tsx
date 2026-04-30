@@ -6,7 +6,7 @@ import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Lexora – Learn English Smarter",
+  title: "LexiVault – Learn English Smarter",
   description: "Master English vocabulary with adaptive AI-powered learning and spaced repetition.",
   icons: { icon: "/favicon.ico" },
 };

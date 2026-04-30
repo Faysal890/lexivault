@@ -1,14 +1,15 @@
-import { generateExampleSentence } from "@/lib/ai";
+import { generateExampleSentence, type GeneratedExample } from "@/lib/ai";
 import { DependencyError, RateLimitedError } from "../errors";
 
 export const aiService = {
-  /**
-   * Returns the generated sentence, or "" if AI is unavailable / disabled.
-   * Throws RateLimitedError if the upstream signaled quota exhaustion.
-   */
-  async exampleSentence(word: string, meaning: string): Promise<string> {
+  async exampleSentence(
+    word: string,
+    meaning: string,
+    nativeLanguage: string,
+    currentSentence?: string
+  ): Promise<GeneratedExample> {
     try {
-      return await generateExampleSentence(word, meaning);
+      return await generateExampleSentence(word, meaning, nativeLanguage, currentSentence);
     } catch (err) {
       if (err instanceof Error && err.message === "QUOTA_EXCEEDED") {
         throw new RateLimitedError("AI quota exceeded");

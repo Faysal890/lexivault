@@ -24,7 +24,8 @@ export const resendVerificationSchema = z.object({
 });
 export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
 
-export const verifyEmailQuerySchema = z.object({
-  token: z.string().length(64),
+export const verifyEmailSchema = z.object({
+  email: z.string().email(),
+  code: z.string().length(6).regex(/^\d{6}$/, "Code must be 6 digits"),
 });
-export type VerifyEmailQuery = z.infer<typeof verifyEmailQuerySchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;

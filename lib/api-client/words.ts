@@ -14,6 +14,9 @@ export const wordsApi = {
 
   remove: (id: string) => apiClient.delete(`/words/${id}`),
 
-  generateExample: (id: string) =>
-    apiClient.post<{ generated: boolean; sentence?: string }>(`/words/${id}/generate-example`),
+  generateExample: (id: string, regenerate = false) =>
+    apiClient.post<{ generated: boolean; sentence?: string; translation?: string; remainingCoins?: number }>(
+      `/words/${id}/generate-example`,
+      { regenerate }
+    ),
 };

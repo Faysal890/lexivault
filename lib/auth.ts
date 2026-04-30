@@ -3,6 +3,27 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
+// Per-email login attempt counter. Pure in-process — fine for single-instance hosting.
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const MAX_LOGIN_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+function checkLoginAttempts(email: string): boolean {
+  const now = Date.now();
+  const rec = loginAttempts.get(email);
+  if (!rec || rec.resetAt <= now) {
+    loginAttempts.set(email, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+    return true;
+  }
+  if (rec.count >= MAX_LOGIN_ATTEMPTS) return false;
+  rec.count += 1;
+  return true;
+}
+
+function resetLoginAttempts(email: string) {
+  loginAttempts.delete(email);
+}
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   pages: {
@@ -18,9 +39,14 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+        const email = credentials.email.toLowerCase().trim();
+
+        if (!checkLoginAttempts(email)) {
+          throw new Error("TooManyAttempts");
+        }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
+          where: { email },
           select: { id: true, name: true, email: true, passwordHash: true, emailVerified: true, role: true },
         });
 
@@ -31,6 +57,7 @@ export const authOptions: NextAuthOptions = {
 
         if (!user.emailVerified) throw new Error("EmailNotVerified");
 
+        resetLoginAttempts(email);
         return { id: user.id, name: user.name, email: user.email, role: user.role };
       },
     }),

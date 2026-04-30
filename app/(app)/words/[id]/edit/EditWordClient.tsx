@@ -3,17 +3,36 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { wordsApi } from "@/lib/api-client";
+import { wordsApi, ApiClientError } from "@/lib/api-client";
+import { useCoins } from "@/contexts/CoinContext";
 
-interface Word { id: string; englishWord: string; meaning: string; exampleSentence: string | null; difficultyLevel: number; tags: string; }
+interface Word {
+  id: string;
+  englishWord: string;
+  meaning: string;
+  exampleSentence: string | null;
+  exampleSentenceTranslation?: string | null;
+  difficultyLevel: number;
+  tags: string;
+}
+
+interface GenerationError {
+  type: "quota" | "coins" | "general";
+  message: string;
+}
 
 export default function EditWordClient({ word }: { word: Word }) {
   const router = useRouter();
+  const { updateCoins } = useCoins();
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<GenerationError | null>(null);
+  const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const [form, setForm] = useState({
     englishWord: word.englishWord,
     meaning: word.meaning,
     exampleSentence: word.exampleSentence ?? "",
+    exampleSentenceTranslation: word.exampleSentenceTranslation ?? "",
     difficultyLevel: word.difficultyLevel,
     tags: word.tags,
   });
@@ -23,11 +42,52 @@ export default function EditWordClient({ word }: { word: Word }) {
     if (!form.englishWord.trim() || !form.meaning.trim()) { toast.error("Word and meaning are required"); return; }
     setLoading(true);
     try {
-      await wordsApi.update(word.id, form);
+      await wordsApi.update(word.id, {
+        englishWord: form.englishWord,
+        meaning: form.meaning,
+        exampleSentence: form.exampleSentence,
+        difficultyLevel: form.difficultyLevel,
+        tags: form.tags,
+      });
       toast.success("Word updated!");
       router.push("/words");
     } catch { toast.error("Failed to update"); }
     finally { setLoading(false); }
+  };
+
+  const handleGenerate = async () => {
+    const regenerate = !!form.exampleSentence;
+    setGenerating(true);
+    setGenerationError(null);
+    try {
+      const result = await wordsApi.generateExample(word.id, regenerate);
+      if (result.generated && result.sentence) {
+        setForm((f) => ({
+          ...f,
+          exampleSentence: result.sentence!,
+          exampleSentenceTranslation: result.translation ?? "",
+        }));
+        if (result.remainingCoins !== undefined) {
+          setCoinBalance(result.remainingCoins);
+          updateCoins(result.remainingCoins);
+        }
+        toast.success("Sentence generated!");
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        if (err.status === 429) {
+          setGenerationError({ type: "quota", message: "AI quota exceeded. Please try again later." });
+        } else if (err.status === 402) {
+          setGenerationError({ type: "coins", message: err.message });
+        } else {
+          setGenerationError({ type: "general", message: "Unable to generate a sentence. Please try again in a moment." });
+        }
+      } else {
+        setGenerationError({ type: "general", message: "Unable to generate a sentence. Please try again in a moment." });
+      }
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
@@ -48,11 +108,50 @@ export default function EditWordClient({ word }: { word: Word }) {
               <textarea value={form.meaning} onChange={(e) => setForm({ ...form, meaning: e.target.value })} className="input-field resize-none" rows={3} disabled={loading} />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-1.5">Example Sentence</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-semibold">Example Sentence</label>
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={generating || loading}
+                  className="flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/80 disabled:opacity-50 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    {generating ? "hourglass_empty" : "auto_awesome"}
+                  </span>
+                  {generating ? "Generating..." : form.exampleSentence ? "Regenerate (10 coins)" : "Generate (10 coins)"}
+                </button>
+              </div>
               <textarea value={form.exampleSentence} onChange={(e) => setForm({ ...form, exampleSentence: e.target.value })} className="input-field resize-none" rows={3} disabled={loading} />
+              {form.exampleSentenceTranslation && (
+                <p className="mt-1.5 text-xs text-on-surface-variant italic px-1">{form.exampleSentenceTranslation}</p>
+              )}
             </div>
           </div>
+
+          {/* Generation Error */}
+          {generationError && (
+            <div className="flex items-start gap-3 bg-error-container/20 border border-error/20 rounded-2xl p-4">
+              <span className="material-symbols-outlined text-error text-[20px] shrink-0 mt-0.5">warning</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-error">Unable to generate sentence</p>
+                <p className="text-xs text-on-surface-variant mt-0.5">{generationError.message}</p>
+                {generationError.type === "coins" && (
+                  <Link href="/store" className="text-xs font-bold text-primary mt-1 inline-block hover:underline">
+                    Get more coins →
+                  </Link>
+                )}
+              </div>
+              <button type="button" onClick={() => setGenerationError(null)} className="p-1 rounded-lg hover:bg-error-container/30 transition-colors shrink-0">
+                <span className="material-symbols-outlined text-[16px] text-error/60">close</span>
+              </button>
+            </div>
+          )}
+          {coinBalance !== null && (
+            <p className="text-xs text-on-surface-variant">Remaining balance: <span className="font-bold text-tertiary">{coinBalance.toLocaleString()} coins</span></p>
+          )}
         </div>
+
         <div className="lg:grid lg:grid-cols-5 lg:gap-5 space-y-4 lg:space-y-0">
           <div className="bg-surface-container-lowest rounded-3xl p-5 lg:p-6 space-y-3 lg:col-span-2">
             <label className="block text-sm font-semibold">Difficulty</label>

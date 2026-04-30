@@ -44,6 +44,15 @@ export const wordRepo = {
     });
   },
 
+  // Look up specific words by id constrained to the owner — used by quiz submission anti-cheat.
+  async findByIdsForUser(userId: string, ids: string[]) {
+    if (ids.length === 0) return [];
+    return prisma.word.findMany({
+      where: { userId, id: { in: ids } },
+      select: { id: true, englishWord: true, meaning: true },
+    });
+  },
+
   async findRecentMinimal(userId: string, take = 5) {
     return prisma.word.findMany({
       where: { userId },
