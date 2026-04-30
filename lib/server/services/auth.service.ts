@@ -18,7 +18,11 @@ const HOUR_MS = 60 * 60 * 1000;
 const OTP_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 function appUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.NEXTAUTH_URL ??
+    "http://localhost:3000"
+  );
 }
 
 function newToken() {
