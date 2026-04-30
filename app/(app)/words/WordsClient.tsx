@@ -20,6 +20,7 @@ interface WordWithStats {
 
 interface WordGenerationState {
   generating: boolean;
+  justGenerated?: boolean;
   error: { type: "quota" | "coins" | "general"; message: string } | null;
 }
 
@@ -223,7 +224,10 @@ export default function WordsClient({ initialWords, tags }: { initialWords: Word
               : w
           )
         );
-        setGenerationStates((prev) => ({ ...prev, [wordId]: { generating: false, error: null } }));
+        setGenerationStates((prev) => ({ ...prev, [wordId]: { generating: false, error: null, justGenerated: true } }));
+        setTimeout(() => {
+          setGenerationStates((prev) => ({ ...prev, [wordId]: { ...prev[wordId], justGenerated: false } }));
+        }, 1000);
         if (result.remainingCoins !== undefined) updateCoins(result.remainingCoins);
         toast.success("Sentence generated!");
       } else {
@@ -340,6 +344,7 @@ export default function WordsClient({ initialWords, tags }: { initialWords: Word
           {filtered.map((w) => {
             const genState = generationStates[w.id];
             const isGenerating = genState?.generating ?? false;
+            const justGenerated = genState?.justGenerated ?? false;
             const genError = genState?.error ?? null;
             return (
             <div key={w.id} className="bg-surface-container-lowest rounded-2xl p-4 lg:p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col">
@@ -368,27 +373,69 @@ export default function WordsClient({ initialWords, tags }: { initialWords: Word
                           className="flex items-center gap-0.5 text-[10px] font-bold text-outline hover:text-primary transition-colors disabled:opacity-50"
                           title="Regenerate (10 coins)"
                         >
-                          <span className="material-symbols-outlined text-[12px]">{isGenerating ? "hourglass_empty" : "refresh"}</span>
+                          <span className={`material-symbols-outlined text-[12px] ${isGenerating ? "animate-sparkle" : ""}`}>refresh</span>
                           {isGenerating ? "..." : "Regenerate"}
                         </button>
                       </div>
-                      <p className="text-xs text-on-surface-variant italic leading-relaxed">&ldquo;{w.exampleSentence}&rdquo;</p>
-                      {w.exampleSentenceTranslation && (
-                        <p className="text-[10px] text-on-surface-variant/70 mt-1 italic">{w.exampleSentenceTranslation}</p>
+                      {isGenerating ? (
+                        <div className="rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-3 flex flex-col items-center gap-2">
+                          <div className="flex items-center gap-3 pt-0.5">
+                            {([0, 0.18, 0.36] as number[]).map((delay, i) => (
+                              <span
+                                key={i}
+                                className="material-symbols-outlined text-primary text-[16px]"
+                                style={{ fontVariationSettings: "'FILL' 1", animation: `bounce-dot 1s ${delay}s infinite` }}
+                              >
+                                auto_awesome
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-[10px] font-semibold text-on-surface-variant tracking-wide">Crafting your sentence...</p>
+                        </div>
+                      ) : (
+                        <>
+                          <p className={`text-xs text-on-surface-variant italic leading-relaxed ${justGenerated ? "animate-pop-in" : ""}`}>
+                            &ldquo;{w.exampleSentence}&rdquo;
+                          </p>
+                          {w.exampleSentenceTranslation && (
+                            <p
+                              className={`text-[10px] text-on-surface-variant/70 mt-1 italic ${justGenerated ? "animate-pop-in" : ""}`}
+                              style={justGenerated ? { animationDelay: "0.1s" } : undefined}
+                            >
+                              {w.exampleSentenceTranslation}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                   ) : (
                     <div className="mt-3 pt-3 border-t border-surface-container-high">
-                      <button
-                        onClick={() => handleGenerate(w.id, false)}
-                        disabled={isGenerating}
-                        className="flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 disabled:opacity-50 transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                          {isGenerating ? "hourglass_empty" : "auto_awesome"}
-                        </span>
-                        {isGenerating ? "Generating..." : "Generate sentence (10 coins)"}
-                      </button>
+                      {isGenerating ? (
+                        <div className="rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-3 flex flex-col items-center gap-2">
+                          <div className="flex items-center gap-3 pt-0.5">
+                            {([0, 0.18, 0.36] as number[]).map((delay, i) => (
+                              <span
+                                key={i}
+                                className="material-symbols-outlined text-primary text-[16px]"
+                                style={{ fontVariationSettings: "'FILL' 1", animation: `bounce-dot 1s ${delay}s infinite` }}
+                              >
+                                auto_awesome
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-[10px] font-semibold text-on-surface-variant tracking-wide">Crafting your sentence...</p>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleGenerate(w.id, false)}
+                          className="flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                            auto_awesome
+                          </span>
+                          Generate sentence (10 coins)
+                        </button>
+                      )}
                     </div>
                   )}
                   {genError && (

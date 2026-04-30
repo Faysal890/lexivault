@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -26,7 +26,14 @@ export default function EditWordClient({ word }: { word: Word }) {
   const { updateCoins } = useCoins();
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [justGenerated, setJustGenerated] = useState(false);
   const [generationError, setGenerationError] = useState<GenerationError | null>(null);
+
+  useEffect(() => {
+    if (!justGenerated) return;
+    const t = setTimeout(() => setJustGenerated(false), 1000);
+    return () => clearTimeout(t);
+  }, [justGenerated]);
   const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const [form, setForm] = useState({
     englishWord: word.englishWord,
@@ -71,6 +78,7 @@ export default function EditWordClient({ word }: { word: Word }) {
           setCoinBalance(result.remainingCoins);
           updateCoins(result.remainingCoins);
         }
+        setJustGenerated(true);
         toast.success("Sentence generated!");
       }
     } catch (err) {
@@ -116,15 +124,50 @@ export default function EditWordClient({ word }: { word: Word }) {
                   disabled={generating || loading}
                   className="flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/80 disabled:opacity-50 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    {generating ? "hourglass_empty" : "auto_awesome"}
+                  <span
+                    className={`material-symbols-outlined text-[14px] ${generating ? "animate-sparkle" : ""}`}
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    auto_awesome
                   </span>
                   {generating ? "Generating..." : form.exampleSentence ? "Regenerate (10 coins)" : "Generate (10 coins)"}
                 </button>
               </div>
-              <textarea value={form.exampleSentence} onChange={(e) => setForm({ ...form, exampleSentence: e.target.value })} className="input-field resize-none" rows={3} disabled={loading} />
-              {form.exampleSentenceTranslation && (
-                <p className="mt-1.5 text-xs text-on-surface-variant italic px-1">{form.exampleSentenceTranslation}</p>
+              {generating ? (
+                <div className="rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-4 h-[88px] flex flex-col items-center justify-between">
+                  <div className="flex items-center gap-4 pt-1">
+                    {([0, 0.18, 0.36] as number[]).map((delay, i) => (
+                      <span
+                        key={i}
+                        className="material-symbols-outlined text-primary text-[22px]"
+                        style={{ fontVariationSettings: "'FILL' 1", animation: `bounce-dot 1s ${delay}s infinite` }}
+                      >
+                        auto_awesome
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs font-semibold text-on-surface-variant tracking-wide">
+                    Crafting your sentence...
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <textarea
+                    value={form.exampleSentence}
+                    onChange={(e) => setForm({ ...form, exampleSentence: e.target.value })}
+                    className={`input-field resize-none ${justGenerated ? "animate-pop-in" : ""}`}
+                    rows={3}
+                    disabled={loading}
+                  />
+                  {form.exampleSentenceTranslation && (
+                    <p
+                      className={`mt-1.5 text-xs text-on-surface-variant italic px-1 ${justGenerated ? "animate-pop-in" : ""}`}
+                      style={justGenerated ? { animationDelay: "0.1s" } : undefined}
+                    >
+                      {form.exampleSentenceTranslation}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
