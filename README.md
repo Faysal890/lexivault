@@ -131,7 +131,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Role | Email | Password |
 |---|---|---|
-| User | `demo@lexora.app` | `password123` |
+| User | `demo@lexivault.app` | `password123` |
 | Admin | set `role = ADMIN` in DB | — |
 
 ---
