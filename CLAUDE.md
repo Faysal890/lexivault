@@ -22,10 +22,11 @@ After any `prisma/schema.prisma` change, always run `npm run db:push` to apply t
 **Layered architecture:**
 - `app/api/v1/**/route.ts` — thin REST controllers. Parse with zod, call a service, return via `ok()` / `created()` / `noContent()`. No business logic, no Prisma access.
 - `app/api/auth/[...nextauth]/route.ts` — NextAuth-managed; stays outside `/api/v1`.
-- `lib/server/services/*.service.ts` — business logic (SRS, streak/XP, AI orchestration, password reset). Single source of truth. **Server components and route handlers both call services directly.**
+- `lib/server/services/*.service.ts` — business logic (SRS, streak/XP, AI orchestration, password reset, coin economy, store, settings). Single source of truth. **Server components and route handlers both call services directly.**
 - `lib/server/repositories/*.repo.ts` — pure DB access wrapping Prisma. No business rules.
 - `lib/server/dto/*.ts` — zod input schemas + DTO types.
 - `lib/server/{errors,http,auth}.ts` — `AppError` taxonomy, response envelope helpers (`ok`/`created`/`fail`/`handle`), and `requireUserId()` session helper.
+- `lib/server/rate-limit.ts` — sliding-window rate limiter (in-memory). Wrap sensitive routes (auth, AI generation) to reject repeated requests before they hit services.
 - `lib/api-client/*` — typed fetch wrappers used only by client components. Speaks the `{ data }` / `{ error }` envelope and throws `ApiClientError`.
 
 **Rendering pattern:** Server components (`page.tsx`) call services directly — same process, no internal HTTP. They pass data to `*Client.tsx` components, which mutate state via `lib/api-client` calling `/api/v1/*`.
@@ -59,6 +60,8 @@ After any `prisma/schema.prisma` change, always run `npm run db:push` to apply t
 **Export feature:** `app/(app)/words/WordsClient.tsx` exports words to Excel (via `xlsx` — dynamic import), PDF (browser print window via `window.open`), and Word (HTML blob saved as `.doc`). Exports respect active search/tag filters.
 
 **Password reset / email verification:** `authService` in `lib/server/services/auth.service.ts`. Tokens are SHA-256-hashed, single-use, stored in `PasswordResetToken` / `EmailVerificationToken`. Reset TTL 1h, verify TTL 24h. Forgot-password and resend-verification always return 200 to avoid leaking account existence.
+
+**Security:** `next.config.mjs` sets a `Content-Security-Policy` header. `lib/server/rate-limit.ts` provides a sliding-window limiter — use it on auth endpoints and AI generation routes. All DTO schemas in `lib/server/dto/` enforce max-length caps on string fields to prevent oversized payloads.
 
 **API documentation:** `docs/API.md` (human) and `docs/openapi.yaml` (OpenAPI 3.1) describe every `/api/v1` endpoint. Update both when adding or changing routes.
 
