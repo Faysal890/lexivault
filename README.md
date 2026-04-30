@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="public/logo.png" alt="Lexora" width="80" />
+<img src="public/logo.png" alt="LexiVault" width="80" />
 
-# Lexora
+# LexiVault
 
 **AI-powered vocabulary learning, built for retention.**
 
-Lexora combines spaced repetition, adaptive quizzes, and Claude AI to help learners build lasting English vocabulary — on any device.
+LexiVault combines spaced repetition, adaptive quizzes, and Claude AI to help learners build lasting English vocabulary — on any device.
 
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
@@ -22,7 +22,7 @@ Lexora combines spaced repetition, adaptive quizzes, and Claude AI to help learn
 
 ## Overview
 
-Lexora is a full-stack SaaS vocabulary learning platform. Users build and review personal word lists, take AI-assisted adaptive quizzes scheduled by the SM-2 spaced repetition algorithm, and earn coins through daily engagement. Coins can be spent on Claude AI–generated example sentences or topped up via the built-in Lemon Squeezy coin store. Administrators control all costs and user data through a dedicated panel.
+LexiVault is a full-stack SaaS vocabulary learning platform. Users build and review personal word lists, take AI-assisted adaptive quizzes scheduled by the SM-2 spaced repetition algorithm, and earn coins through daily engagement. Coins can be spent on Claude AI–generated example sentences or topped up via the built-in Lemon Squeezy coin store. Administrators control all costs and user data through a dedicated panel.
 
 ---
 
