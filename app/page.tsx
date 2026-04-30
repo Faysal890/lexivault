@@ -79,10 +79,10 @@ export default async function LandingPage() {
             <a href="#faq" className="text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors">FAQ</a>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/login" className="text-sm font-semibold text-on-surface px-4 py-2 rounded-xl hover:bg-surface-container transition-colors">
+            <Link href="/login" className="hidden sm:block text-sm font-semibold text-on-surface px-4 py-2 rounded-xl hover:bg-surface-container transition-colors">
               Sign in
             </Link>
-            <Link href="/register" className="text-sm font-bold text-on-primary bg-gradient-primary px-4 py-2 rounded-xl shadow-sm shadow-primary/30 hover:shadow-md hover:shadow-primary/40 transition-all active:scale-95">
+            <Link href="/register" className="text-sm font-bold text-on-primary bg-gradient-primary px-3 py-2 sm:px-4 rounded-xl shadow-sm shadow-primary/30 hover:shadow-md hover:shadow-primary/40 transition-all active:scale-95">
               Get Started
             </Link>
           </div>
