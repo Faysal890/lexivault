@@ -13,6 +13,7 @@ servers:
 
 security:
   - sessionCookie: []
+  - bearerApiKey: []
 
 tags:
   - name: Auth
@@ -25,6 +26,8 @@ tags:
     description: Aggregate stats summary
   - name: Profile
     description: Profile read / update / password change
+  - name: API Keys
+    description: Personal API keys for the mobile app and browser extension
 
 paths:
   /auth/register:
@@ -392,6 +395,72 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
+  /api-keys:
+    get:
+      tags: [API Keys]
+      summary: List the current user's API keys
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: List of keys (raw secrets are never returned)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ApiKey" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [API Keys]
+      summary: Create a new API key (raw secret returned once)
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 60 }
+                expiresInDays:
+                  type: integer
+                  minimum: 1
+                  maximum: 365
+                  description: Omit for a key that never expires
+      responses:
+        "201":
+          description: Key created — `raw` is the only place the full key appears
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/ApiKeyCreated" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api-keys/{id}:
+    delete:
+      tags: [API Keys]
+      summary: Revoke an API key (idempotent)
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Key revoked }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -402,6 +471,17 @@ components:
         NextAuth session cookie. Issued via the NextAuth credentials flow at
         `/api/auth/callback/credentials` (outside this spec). The browser
         sends it automatically on same-origin requests.
+    bearerApiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: lx_<prefix>_<secret>
+      description: |
+        Personal API key created at `POST /api-keys`. The full token is shown
+        only once on creation; the server stores a SHA-256 hash. External
+        clients (mobile app, browser extension) send it as
+        `Authorization: Bearer lx_<prefix>_<secret>`. Keys inherit the role
+        of the user that created them. The `/api-keys/*` endpoints reject
+        bearer auth — they require a session cookie.
 
   responses:
     BadRequest:
@@ -629,3 +709,33 @@ components:
         name: { type: string, minLength: 2, maxLength: 50 }
         nativeLanguage: { type: string, minLength: 1, maxLength: 50 }
         dailyGoal: { type: integer, minimum: 1, maximum: 50 }
+
+    ApiKey:
+      type: object
+      required: [id, name, prefix, scopes, lastUsedAt, expiresAt, revokedAt, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string, maxLength: 60 }
+        prefix:
+          type: string
+          description: Public key prefix (e.g., `lx_a3f1c204`) — safe to display
+        scopes:
+          type: string
+          description: Comma-separated scope list, currently fixed to `read,write`
+        lastUsedAt: { type: [string, "null"], format: date-time }
+        expiresAt: { type: [string, "null"], format: date-time }
+        revokedAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    ApiKeyCreated:
+      allOf:
+        - $ref: "#/components/schemas/ApiKey"
+        - type: object
+          required: [raw]
+          properties:
+            raw:
+              type: string
+              description: |
+                Full key in the form `lx_<prefix>_<48 hex>`. Returned only on
+                creation — the server stores a SHA-256 hash and cannot recover
+                this value later.

@@ -2,9 +2,15 @@
 
 Base URL: `/api/v1`
 
-All endpoints (except auth bootstrap) require an authenticated NextAuth session cookie.
-The frontend running on the same origin sends the cookie automatically; cross-origin
-clients must include `credentials: "include"` and have a valid session.
+All `/api/v1/*` endpoints accept either a NextAuth session cookie (used by the web app)
+or a personal API key sent as `Authorization: Bearer lx_<prefix>_<secret>` (used by the
+mobile app and browser extension). Public bootstrap endpoints (auth, password reset,
+verify email, store webhook) require neither. The endpoints under `/api/v1/api-keys`
+intentionally reject Bearer auth — a leaked key cannot mint or revoke other keys.
+
+CORS is enabled (`Access-Control-Allow-Origin: *`) on every `/api/v1/*` route to allow
+external clients. `Access-Control-Allow-Credentials` is **not** set, so the wildcard
+origin is safe — cookies cannot be replayed cross-origin.
 
 ## Conventions
 
@@ -48,6 +54,20 @@ NextAuth manages the session. The browser flow is:
 `POST /api/auth/signin` and `POST /api/auth/signout` are NextAuth-managed and live
 outside the `/api/v1` namespace.
 
+#### API keys (mobile / extension flow)
+
+External clients should use API keys instead of cookies:
+
+1. The user signs in to the web app and visits **Profile → API Keys**.
+2. They create a key, name it (e.g. "iPhone app") and optionally set an expiry.
+3. The raw key is shown **once** in the form `lx_<prefix>_<secret>` — the server only
+   stores a SHA-256 hash, so a lost key cannot be recovered, only revoked.
+4. The client sends every request with `Authorization: Bearer lx_<prefix>_<secret>`.
+
+API keys inherit the role of the user that created them (e.g. an `ADMIN` user's key
+can call admin endpoints). They are rejected on `/api/v1/api-keys/*` to prevent a
+leaked key from minting more keys.
+
 ---
 
 ## Resources
@@ -57,6 +77,7 @@ outside the `/api/v1` namespace.
 - [Quiz](#quiz)
 - [Stats](#stats)
 - [Profile](#profile)
+- [API Keys](#api-keys)
 
 ---
 
@@ -413,3 +434,79 @@ Change password while signed in. Verifies the current password first.
 ```
 **400** — `BAD_REQUEST` if the current password is wrong.
 **422** — `VALIDATION_ERROR` if `newPassword !== confirmPassword`.
+
+---
+
+## API Keys
+
+These endpoints are **session-only** — they reject `Authorization: Bearer` so a leaked
+key cannot mint or destroy other keys.
+
+### `GET /api/v1/api-keys`
+
+List the current user's API keys (active, expired, and revoked). The raw secret is
+never returned — only the prefix and metadata.
+
+**200**
+```json
+{
+  "data": [
+    {
+      "id": "clx...",
+      "name": "iPhone app",
+      "prefix": "lx_a3f1c204",
+      "scopes": "read,write",
+      "lastUsedAt": "2026-04-30T08:12:34.000Z",
+      "expiresAt": null,
+      "revokedAt": null,
+      "createdAt": "2026-04-12T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### `POST /api/v1/api-keys`
+
+Create a new API key. The full raw key is returned **once** — the server only stores
+a SHA-256 hash. Rate-limited to 5 creations per minute per user.
+
+**Body**
+```json
+{
+  "name": "iPhone app",
+  "expiresInDays": 90
+}
+```
+- `name` — required, 1–60 chars
+- `expiresInDays` — optional, 1–365; omit for a key that never expires
+
+**201**
+```json
+{
+  "data": {
+    "id": "clx...",
+    "name": "iPhone app",
+    "prefix": "lx_a3f1c204",
+    "scopes": "read,write",
+    "lastUsedAt": null,
+    "expiresAt": "2026-07-30T08:12:34.000Z",
+    "revokedAt": null,
+    "createdAt": "2026-04-30T08:12:34.000Z",
+    "raw": "lx_a3f1c204_<48 hex chars>"
+  }
+}
+```
+
+**429** — `RATE_LIMITED` if the user has created more than 5 keys in the last minute.
+
+---
+
+### `DELETE /api/v1/api-keys/:id`
+
+Revoke a key. Idempotent — revoking an already-revoked key still returns 204. The
+key stops working immediately on the next request.
+
+**204** — no body.
+**404** — `NOT_FOUND` if the key does not belong to the current user.

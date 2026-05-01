@@ -1,5 +1,5 @@
 import { requireAdminId } from "@/lib/server/auth";
-import { handle, ok, noContent, parseJson } from "@/lib/server/http";
+import { corsHandle, ok, noContent, parseJson } from "@/lib/server/http";
 import { storeRepo } from "@/lib/server/repositories/store.repo";
 import { NotFoundError } from "@/lib/server/errors";
 import { z } from "zod";
@@ -12,18 +12,22 @@ const updateSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-export const PATCH = handle(async (req: Request, ctx: { params: { id: string } }) => {
+export const PATCH = corsHandle(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
   await requireAdminId();
+  const { id } = await ctx.params;
   const data = updateSchema.parse(await parseJson(req, (r) => r));
-  const pkg = await storeRepo.getPackage(ctx.params.id);
+  const pkg = await storeRepo.getPackage(id);
   if (!pkg) throw new NotFoundError("Package not found");
-  return ok(await storeRepo.updatePackage(ctx.params.id, data));
+  return ok(await storeRepo.updatePackage(id, data));
 });
 
-export const DELETE = handle(async (_req: Request, ctx: { params: { id: string } }) => {
+export const DELETE = corsHandle(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
   await requireAdminId();
-  const pkg = await storeRepo.getPackage(ctx.params.id);
+  const { id } = await ctx.params;
+  const pkg = await storeRepo.getPackage(id);
   if (!pkg) throw new NotFoundError("Package not found");
-  await storeRepo.deletePackage(ctx.params.id);
+  await storeRepo.deletePackage(id);
   return noContent();
 });
+
+export { corsOptions as OPTIONS } from "@/lib/server/http";

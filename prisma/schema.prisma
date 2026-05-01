@@ -51,6 +51,7 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   coinTransactions        CoinTransaction[]
   orders                  Order[]
+  apiKeys                 ApiKey[]
 
   @@map("users")
 }
@@ -193,6 +194,25 @@ model EmailVerificationToken {
 
   @@index([userId])
   @@map("email_verification_tokens")
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  prefix      String
+  tokenHash   String    @unique
+  scopes      String    @default("read,write")
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, revokedAt])
+  @@map("api_keys")
 }
 
 model AppSettings {

@@ -1,9 +1,9 @@
 import { requireUserId } from "@/lib/server/auth";
 import { listWordsQuerySchema, createWordSchema } from "@/lib/server/dto/word";
-import { created, handle, ok } from "@/lib/server/http";
+import { created, corsHandle, ok } from "@/lib/server/http";
 import { wordService } from "@/lib/server/services/word.service";
 
-export const GET = handle(async (req: Request) => {
+export const GET = corsHandle(async (req: Request) => {
   const userId = await requireUserId();
   const { searchParams } = new URL(req.url);
   const query = listWordsQuerySchema.parse({
@@ -14,9 +14,11 @@ export const GET = handle(async (req: Request) => {
   return ok(words);
 });
 
-export const POST = handle(async (req: Request) => {
+export const POST = corsHandle(async (req: Request) => {
   const userId = await requireUserId();
   const input = createWordSchema.parse(await req.json());
   const word = await wordService.create(userId, input);
   return created(word);
 });
+
+export { corsOptions as OPTIONS } from "@/lib/server/http";

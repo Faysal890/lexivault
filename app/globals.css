@@ -1,9 +1,65 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* Material Design 3 color tokens */
+  --color-surface-container: #edeeef;
+  --color-error: #ba1a1a;
+  --color-primary-fixed: #d8e2ff;
+  --color-primary-container: #2170e4;
+  --color-surface-variant: #e1e3e4;
+  --color-surface-bright: #f8f9fa;
+  --color-on-secondary: #ffffff;
+  --color-on-primary-container: #fefcff;
+  --color-on-secondary-container: #00714d;
+  --color-secondary-fixed: #6ffbbe;
+  --color-tertiary-container: #b75b00;
+  --color-on-surface: #191c1d;
+  --color-on-tertiary: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-secondary: #006c49;
+  --color-tertiary-fixed: #ffdcc6;
+  --color-inverse-primary: #adc6ff;
+  --color-primary-fixed-dim: #adc6ff;
+  --color-on-background: #191c1d;
+  --color-outline-variant: #c2c6d6;
+  --color-surface-dim: #d9dadb;
+  --color-secondary-fixed-dim: #4edea3;
+  --color-on-surface-variant: #424754;
+  --color-surface: #f8f9fa;
+  --color-surface-container-lowest: #ffffff;
+  --color-tertiary: #924700;
+  --color-on-error: #ffffff;
+  --color-on-primary: #ffffff;
+  --color-surface-container-high: #e7e8e9;
+  --color-primary: #0058be;
+  --color-surface-tint: #005ac2;
+  --color-inverse-on-surface: #f0f1f2;
+  --color-on-primary-fixed-variant: #004395;
+  --color-secondary-container: #6cf8bb;
+  --color-background: #f8f9fa;
+  --color-outline: #727785;
+  --color-on-error-container: #93000a;
+  --color-on-tertiary-fixed: #311400;
+  --color-on-primary-fixed: #001a42;
+  --color-surface-container-highest: #e1e3e4;
+  --color-surface-container-low: #f3f4f5;
+  --color-tertiary-fixed-dim: #ffb786;
+  --color-inverse-surface: #2e3132;
+  --color-on-secondary-fixed: #002113;
+
+  /* Fonts */
+  --font-headline: "Plus Jakarta Sans", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-sans: "Inter", sans-serif;
+
+  /* Border radius extensions */
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+}
 
 @layer base {
   :root {
@@ -18,6 +74,14 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-headline);
   }
+}
+
+@utility bg-gradient-primary {
+  background: linear-gradient(135deg, #0058be 0%, #2170e4 100%);
+}
+
+@utility bg-gradient-secondary {
+  background: linear-gradient(135deg, #006c49 0%, #4edea3 100%);
 }
 
 @layer components {
@@ -37,20 +101,12 @@
     user-select: none;
   }
 
-  .bg-gradient-primary {
-    background: linear-gradient(135deg, #0058be 0%, #2170e4 100%);
-  }
-
-  .bg-gradient-secondary {
-    background: linear-gradient(135deg, #006c49 0%, #4edea3 100%);
-  }
-
   .card {
     @apply bg-surface-container-lowest rounded-3xl p-6;
   }
 
   .btn-primary {
-    @apply w-full py-4 px-8 rounded-2xl bg-gradient-primary text-on-primary font-bold text-lg 
+    @apply w-full py-4 px-8 rounded-2xl bg-gradient-primary text-on-primary font-bold text-lg
            shadow-lg shadow-primary/20 active:scale-[0.98] transition-all duration-200;
   }
 
@@ -68,8 +124,8 @@
   }
 
   .input-field {
-    @apply w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-container-lowest 
-           text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 
+    @apply w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-container-lowest
+           text-on-surface placeholder:text-outline focus:outline-none focus:ring-2
            focus:ring-primary/30 focus:border-primary transition-all;
   }
 
@@ -150,7 +206,7 @@
   }
 
   .quiz-option {
-    @apply flex items-center justify-between p-5 bg-surface-container-lowest border-2 border-transparent 
+    @apply flex items-center justify-between p-5 bg-surface-container-lowest border-2 border-transparent
            rounded-2xl transition-all duration-200 text-left cursor-pointer w-full
            hover:border-primary-fixed-dim active:scale-[0.98];
   }

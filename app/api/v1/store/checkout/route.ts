@@ -1,5 +1,5 @@
 import { requireUserId } from "@/lib/server/auth";
-import { handle, ok, parseJson } from "@/lib/server/http";
+import { corsHandle, ok, parseJson } from "@/lib/server/http";
 import { storeService } from "@/lib/server/services/store.service";
 import { z } from "zod";
 
@@ -9,7 +9,7 @@ function appUrl() {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
 
-export const POST = handle(async (req: Request) => {
+export const POST = corsHandle(async (req: Request) => {
   const userId = await requireUserId();
   const { packageId } = bodySchema.parse(await parseJson(req, (r) => r));
   const base = appUrl();
@@ -22,3 +22,5 @@ export const POST = handle(async (req: Request) => {
   // Return only the URL to the client (orderId is embedded in the success URL by the service)
   return ok({ url: result.url });
 });
+
+export { corsOptions as OPTIONS } from "@/lib/server/http";

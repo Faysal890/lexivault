@@ -1,5 +1,5 @@
 import { requireAdminId } from "@/lib/server/auth";
-import { handle, ok, parseJson } from "@/lib/server/http";
+import { corsHandle, ok, parseJson } from "@/lib/server/http";
 import { settingsService } from "@/lib/server/services/settings.service";
 import { z } from "zod";
 
@@ -12,13 +12,15 @@ const updateSchema = z.object({
   dailyQuizCoins: z.number().int().min(0).max(SETTINGS_MAX).optional(),
 });
 
-export const GET = handle(async () => {
+export const GET = corsHandle(async () => {
   await requireAdminId();
   return ok(await settingsService.getSettings());
 });
 
-export const PATCH = handle(async (req: Request) => {
+export const PATCH = corsHandle(async (req: Request) => {
   await requireAdminId();
   const data = updateSchema.parse(await parseJson(req, (r) => r));
   return ok(await settingsService.updateSettings(data));
 });
+
+export { corsOptions as OPTIONS } from "@/lib/server/http";

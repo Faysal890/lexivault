@@ -4,6 +4,7 @@ import { signOut } from "next-auth/react";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
 import { profileApi, ApiClientError } from "@/lib/api-client";
+import ApiKeysSection from "./ApiKeysSection";
 
 const LANGUAGES = ["Bengali", "Hindi", "Arabic", "Spanish", "French", "Portuguese", "Turkish", "Urdu", "Indonesian", "Other"];
 
@@ -230,6 +231,9 @@ export default function ProfileClient({ user, streak }: Props) {
           </div>
         )}
       </div>
+
+      {/* API Keys */}
+      <ApiKeysSection />
 
       {/* Sign Out */}
       <button

@@ -1,5 +1,5 @@
 import { requireAdminId } from "@/lib/server/auth";
-import { handle, ok, parseJson } from "@/lib/server/http";
+import { corsHandle, ok, parseJson } from "@/lib/server/http";
 import { coinService } from "@/lib/server/services/coin.service";
 import { NotFoundError } from "@/lib/server/errors";
 import { userRepo } from "@/lib/server/repositories/user.repo";
@@ -15,19 +15,22 @@ const bodySchema = z.object({
   reason: z.string().min(1).max(200).optional().default("Admin adjustment"),
 });
 
-export const POST = handle(async (req: Request, ctx: { params: { id: string } }) => {
+export const POST = corsHandle(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
   await requireAdminId();
+  const { id } = await ctx.params;
   const { action, amount, reason } = bodySchema.parse(await parseJson(req, (r) => r));
 
-  const user = await userRepo.findById(ctx.params.id);
+  const user = await userRepo.findById(id);
   if (!user) throw new NotFoundError("User not found");
 
   let newBalance: number;
   if (action === "add") {
-    newBalance = await coinService.addCoins(ctx.params.id, amount, "ADMIN_GRANT", reason);
+    newBalance = await coinService.addCoins(id, amount, "ADMIN_GRANT", reason);
   } else {
-    newBalance = await coinService.setCoins(ctx.params.id, amount, reason);
+    newBalance = await coinService.setCoins(id, amount, reason);
   }
 
   return ok({ coins: newBalance });
 });
+
+export { corsOptions as OPTIONS } from "@/lib/server/http";

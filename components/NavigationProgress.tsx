@@ -7,7 +7,7 @@ export default function NavigationProgress() {
   const [visible, setVisible] = useState(false);
   const [width, setWidth] = useState(0);
   const [finishing, setFinishing] = useState(false);
-  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const navigating = useRef(false);
 
   // Pathname changed → navigation complete

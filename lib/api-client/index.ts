@@ -7,3 +7,4 @@ export { authApi } from "./auth";
 export { adminApi } from "./admin";
 export { coinsApi } from "./coins";
 export { storeApi } from "./store";
+export { apiKeysApi } from "./apiKeys";

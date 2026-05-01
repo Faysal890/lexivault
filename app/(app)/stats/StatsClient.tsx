@@ -83,7 +83,7 @@ export default function StatsClient({ streak, totalWords, masteredWords, totalQu
               <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#424754" }} width={20} />
               <Tooltip
                 contentStyle={{ background: "#fff", border: "1px solid #e1e3e4", borderRadius: "12px", fontSize: "12px" }}
-                formatter={(v: number) => [`${v} words`, "Added"]}
+                formatter={(v) => [`${v ?? 0} words`, "Added"]}
               />
               <Bar dataKey="count" fill="#0058be" radius={[6, 6, 0, 0]} />
             </BarChart>
@@ -99,7 +99,7 @@ export default function StatsClient({ streak, totalWords, masteredWords, totalQu
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e1e3e4" />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#424754" }} />
                 <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#424754" }} width={25} tickFormatter={(v) => `${v}%`} />
-                <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e1e3e4", borderRadius: "12px", fontSize: "12px" }} formatter={(v: number) => [`${v}%`, "Accuracy"]} />
+                <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e1e3e4", borderRadius: "12px", fontSize: "12px" }} formatter={(v) => [`${v ?? 0}%`, "Accuracy"]} />
                 <Line type="monotone" dataKey="accuracy" stroke="#006c49" strokeWidth={2.5} dot={{ fill: "#006c49", r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
