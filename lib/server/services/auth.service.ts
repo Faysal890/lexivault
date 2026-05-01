@@ -32,7 +32,7 @@ function newToken() {
 }
 
 function newOtpCode() {
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const code = String(crypto.randomInt(100_000, 1_000_000));
   const hash = crypto.createHash("sha256").update(code).digest("hex");
   return { code, hash };
 }

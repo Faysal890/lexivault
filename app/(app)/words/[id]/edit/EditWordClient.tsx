@@ -86,7 +86,7 @@ export default function EditWordClient({ word }: { word: Word }) {
         if (err.status === 429) {
           setGenerationError({ type: "quota", message: "AI quota exceeded. Please try again later." });
         } else if (err.status === 402) {
-          setGenerationError({ type: "coins", message: err.message });
+          setGenerationError({ type: "coins", message: "You don't have enough coins." });
         } else {
           setGenerationError({ type: "general", message: "Unable to generate a sentence. Please try again in a moment." });
         }

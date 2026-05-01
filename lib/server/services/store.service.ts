@@ -116,8 +116,8 @@ export const storeService = {
         }
       }
       return null;
-    } catch {
-      console.error("[store-verify] LS lookup failed");
+    } catch (err) {
+      console.error("[store-verify] LS lookup failed:", err instanceof Error ? err.message : String(err));
       return null;
     }
   },

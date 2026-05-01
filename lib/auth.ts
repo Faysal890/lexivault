@@ -1,7 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { verifyPassword } from "@/lib/server/password";
-import { prisma } from "@/lib/prisma";
+import { userRepo } from "@/lib/server/repositories/user.repo";
 
 // Per-email login attempt counter. Pure in-process — fine for single-instance hosting.
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -45,10 +45,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error("TooManyAttempts");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-          select: { id: true, name: true, email: true, passwordHash: true, emailVerified: true, role: true },
-        });
+        const user = await userRepo.findByEmail(email);
 
         if (!user) return null;
 

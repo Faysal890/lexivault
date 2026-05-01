@@ -40,7 +40,7 @@ export const wordService = {
     const existing = await wordRepo.getById(userId, id);
     if (!existing) throw new NotFoundError("Word not found");
 
-    return wordRepo.update(id, {
+    return wordRepo.update(userId, id, {
       ...input,
       exampleSentence:
         input.exampleSentence === undefined
@@ -54,7 +54,7 @@ export const wordService = {
   async remove(userId: string, id: string) {
     const existing = await wordRepo.getById(userId, id);
     if (!existing) throw new NotFoundError("Word not found");
-    await wordRepo.delete(id);
+    await wordRepo.delete(userId, id);
   },
 
   async generateExample(
@@ -108,7 +108,7 @@ export const wordService = {
       return { generated: false, remainingCoins: refundedBalance };
     }
 
-    await wordRepo.update(id, {
+    await wordRepo.update(userId, id, {
       exampleSentence: result.sentence,
       exampleSentenceTranslation: result.translation || null,
     });

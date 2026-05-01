@@ -183,7 +183,7 @@ export default function WordsClient({ initialWords, tags }: { initialWords: Word
       const label = format === "excel" ? "Excel" : format === "pdf" ? "PDF" : "Word";
       toast.success(`Exported ${wordsToExport.length} word${wordsToExport.length !== 1 ? "s" : ""} as ${label}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Export failed");
+      toast.error("Export failed. Please try again.");
     } finally {
       setExporting(false);
     }
@@ -238,7 +238,7 @@ export default function WordsClient({ initialWords, tags }: { initialWords: Word
       let message = "Unable to generate a sentence. Please try again in a moment.";
       if (err instanceof ApiClientError) {
         if (err.status === 429) { errorType = "quota"; message = "AI quota exceeded. Try again later."; }
-        else if (err.status === 402) { errorType = "coins"; message = err.message; }
+        else if (err.status === 402) { errorType = "coins"; message = "You don't have enough coins."; }
       }
       setGenerationStates((prev) => ({
         ...prev,

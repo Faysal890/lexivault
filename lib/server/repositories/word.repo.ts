@@ -72,12 +72,12 @@ export const wordRepo = {
     });
   },
 
-  async update(id: string, data: Prisma.WordUpdateInput) {
-    return prisma.word.update({ where: { id }, data });
+  async update(userId: string, id: string, data: Prisma.WordUpdateInput) {
+    return prisma.word.update({ where: { id, userId }, data });
   },
 
-  async delete(id: string) {
-    await prisma.word.delete({ where: { id } });
+  async delete(userId: string, id: string) {
+    await prisma.word.delete({ where: { id, userId } });
   },
 
   async count(userId: string) {
