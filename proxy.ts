@@ -1,18 +1,40 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
+import { jwtDecrypt } from "jose";
 
-export const runtime = "edge";
+// Matches next-auth v4's getDerivedEncryptionKey(secret, salt="")
+// hkdf("sha256", secret, salt="", "NextAuth.js Generated Encryption Key", 32)
+async function getDerivedKey(secret: string): Promise<Uint8Array> {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    "HKDF",
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array(0), // salt="" → empty byte array
+      info: enc.encode("NextAuth.js Generated Encryption Key"),
+    },
+    keyMaterial,
+    256
+  );
+  return new Uint8Array(bits);
+}
 
 async function getSessionToken(request: NextRequest): Promise<{ id: string; role: string } | null> {
   const cookieName = process.env.NODE_ENV === "production"
     ? "__Secure-next-auth.session-token"
     : "next-auth.session-token";
-  const token = request.cookies.get(cookieName)?.value;
-  if (!token) return null;
+  const rawToken = request.cookies.get(cookieName)?.value;
+  if (!rawToken) return null;
   try {
-    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
-    const { payload } = await jwtVerify(token, secret);
+    const key = await getDerivedKey(process.env.NEXTAUTH_SECRET!);
+    const { payload } = await jwtDecrypt(rawToken, key, { clockTolerance: 15 });
     return { id: payload.id as string, role: payload.role as string };
   } catch {
     return null;
