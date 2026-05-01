@@ -17,6 +17,15 @@ interface QuizQuestion {
   correctAnswer: string;
 }
 
+interface DetailedAnswer {
+  question: string;
+  userAnswer: string;
+  correctAnswer: string;
+  correct: boolean;
+  skipped: boolean;
+  word: string;
+}
+
 type Phase = "idle" | "loading" | "active" | "result";
 
 export default function QuizPage() {
@@ -32,6 +41,7 @@ export default function QuizPage() {
   const [score, setScore] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [quizResult, setQuizResult] = useState<{ xpGained: number; coinsEarned: number } | null>(null);
+  const [detailedAnswers, setDetailedAnswers] = useState<DetailedAnswer[]>([]);
   const { updateCoins } = useCoins();
 
   const startQuiz = async () => {
@@ -46,6 +56,7 @@ export default function QuizPage() {
       setQuestions(generated);
       setCurrent(0);
       setAnswers([]);
+      setDetailedAnswers([]);
       setScore(0);
       setSelected(null);
       setRevealed(false);
@@ -69,6 +80,14 @@ export default function QuizPage() {
     setRevealed(true);
     if (isCorrect) setScore((s) => s + 1);
     setAnswers((prev) => [...prev, { correct: isCorrect, word: q.word }]);
+    setDetailedAnswers((prev) => [...prev, {
+      question: q.question,
+      userAnswer: answer,
+      correctAnswer: q.correctAnswer,
+      correct: isCorrect,
+      skipped: false,
+      word: q.word,
+    }]);
   }, [revealed, questions, current, fillAnswer, selected]);
 
   const nextQuestion = useCallback(async () => {
@@ -120,7 +139,7 @@ export default function QuizPage() {
 
   if (phase === "idle") return <QuizSetup quizType={quizType} setQuizType={setQuizType} quizSize={quizSize} setQuizSize={setQuizSize} onStart={startQuiz} />;
   if (phase === "loading") return <div className="py-20 text-center"><span className="material-symbols-outlined text-5xl text-primary animate-spin block mb-4">refresh</span><p className="text-on-surface-variant">Generating quiz...</p></div>;
-  if (phase === "result") return <QuizResult score={score} total={questions.length} answers={answers} quizType={quizType} coinsEarned={quizResult?.coinsEarned ?? 0} xpGained={quizResult?.xpGained ?? 0} onRetry={startQuiz} />;
+  if (phase === "result") return <QuizResult score={score} total={questions.length} answers={answers} detailedAnswers={detailedAnswers} quizType={quizType} coinsEarned={quizResult?.coinsEarned ?? 0} xpGained={quizResult?.xpGained ?? 0} onRetry={startQuiz} />;
 
   const q = questions[current];
   const progress = ((current) / questions.length) * 100;
@@ -212,7 +231,20 @@ export default function QuizPage() {
           </button>
         )}
         {!revealed && (
-          <button onClick={() => { setSelected(null); setFillAnswer(""); nextQuestion(); }} className="text-on-surface-variant text-sm font-semibold text-center lg:text-left lg:px-4 hover:text-on-surface transition-colors">
+          <button onClick={() => {
+            const skippedQ = questions[current];
+            setDetailedAnswers((prev) => [...prev, {
+              question: skippedQ.question,
+              userAnswer: "",
+              correctAnswer: skippedQ.correctAnswer,
+              correct: false,
+              skipped: true,
+              word: skippedQ.word,
+            }]);
+            setSelected(null);
+            setFillAnswer("");
+            nextQuestion();
+          }} className="text-on-surface-variant text-sm font-semibold text-center lg:text-left lg:px-4 hover:text-on-surface transition-colors">
             Skip this question
           </button>
         )}
@@ -269,12 +301,48 @@ function QuizSetup({ quizType, setQuizType, quizSize, setQuizSize, onStart }: {
   );
 }
 
-function QuizResult({ score, total, answers, quizType, coinsEarned, xpGained, onRetry }: {
-  score: number; total: number; answers: { correct: boolean; word: string }[]; quizType: string;
+function AnimatedBook() {
+  return (
+    <div className="animate-book-bob w-20 h-16 lg:w-24 lg:h-20 mx-auto">
+      <svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg" className="w-full h-full overflow-visible">
+        {/* Drop shadow */}
+        <ellipse cx="40" cy="57" rx="26" ry="3" fill="rgba(0,88,190,0.12)" />
+        {/* Left page */}
+        <rect x="4" y="6" width="32" height="44" rx="3" fill="#e8edf8" stroke="#0058be" strokeWidth="1.5" />
+        {/* Lines — left page */}
+        <line x1="11" y1="17" x2="30" y2="17" stroke="#94a3cc" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="11" y1="23" x2="30" y2="23" stroke="#94a3cc" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="11" y1="29" x2="30" y2="29" stroke="#94a3cc" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="11" y1="35" x2="25" y2="35" stroke="#94a3cc" strokeWidth="1.2" strokeLinecap="round" />
+        {/* Right page (static backing) */}
+        <rect x="44" y="6" width="32" height="44" rx="3" fill="#f0f4ff" stroke="#6690d9" strokeWidth="1.5" />
+        {/* Lines — right page */}
+        <line x1="51" y1="17" x2="70" y2="17" stroke="#94a3cc" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="51" y1="23" x2="70" y2="23" stroke="#94a3cc" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="51" y1="29" x2="70" y2="29" stroke="#94a3cc" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="51" y1="35" x2="65" y2="35" stroke="#94a3cc" strokeWidth="1.2" strokeLinecap="round" />
+        {/* Spine */}
+        <rect x="35" y="4" width="10" height="48" rx="2" fill="#0058be" />
+        {/* Flipping page — animates scaleX from left edge */}
+        <rect
+          className="animate-page-turn"
+          x="45" y="7" width="29" height="42" rx="2"
+          fill="#c7d9ff"
+          stroke="#4d8bf0"
+          strokeWidth="1"
+        />
+      </svg>
+    </div>
+  );
+}
+
+function QuizResult({ score, total, answers, detailedAnswers, quizType, coinsEarned, xpGained, onRetry }: {
+  score: number; total: number; answers: { correct: boolean; word: string }[];
+  detailedAnswers: DetailedAnswer[]; quizType: string;
   coinsEarned: number; xpGained: number; onRetry: () => void;
 }) {
   const pct = Math.round((score / total) * 100);
-  const medal = pct >= 90 ? "🏆" : pct >= 70 ? "🥈" : pct >= 50 ? "🥉" : "📚";
+  const medal = pct >= 90 ? "🏆" : pct >= 70 ? "🥈" : pct >= 50 ? "🥉" : null;
   const msg = pct >= 90 ? "Outstanding!" : pct >= 70 ? "Great job!" : pct >= 50 ? "Good effort!" : "Keep practicing!";
 
   return (
@@ -290,7 +358,11 @@ function QuizResult({ score, total, answers, quizType, coinsEarned, xpGained, on
       )}
       <div className="lg:grid lg:grid-cols-5 lg:gap-6 space-y-6 lg:space-y-0">
         <div className="bg-surface-container-lowest rounded-3xl p-8 lg:p-10 text-center space-y-4 lg:col-span-2 lg:flex lg:flex-col lg:justify-center">
-          <div className="text-6xl lg:text-7xl">{medal}</div>
+          {medal ? (
+            <div className="text-6xl lg:text-7xl">{medal}</div>
+          ) : (
+            <AnimatedBook />
+          )}
           <div>
             <h2 className="font-headline text-3xl lg:text-4xl font-extrabold text-on-surface">{msg}</h2>
             <p className="text-on-surface-variant mt-1">You scored {score} out of {total}</p>
@@ -307,16 +379,35 @@ function QuizResult({ score, total, answers, quizType, coinsEarned, xpGained, on
           </div>
         </div>
 
-        {/* Word Results */}
+        {/* Q&A Review */}
         <div className="space-y-2 lg:col-span-3 lg:bg-surface-container-lowest lg:rounded-3xl lg:p-6">
-          <h3 className="font-headline font-bold text-lg lg:text-xl text-on-surface px-1 lg:px-0">Results</h3>
-          <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0 lg:max-h-[420px] lg:overflow-y-auto lg:pr-1">
-            {answers.map((a, i) => (
-              <div key={i} className={clsx("flex items-center gap-3 p-3 rounded-2xl", a.correct ? "bg-secondary-container/30" : "bg-error-container/20")}>
-                <span className={clsx("material-symbols-outlined shrink-0", a.correct ? "text-secondary" : "text-error")} style={{ fontVariationSettings: "'FILL' 1" }}>
-                  {a.correct ? "check_circle" : "cancel"}
-                </span>
-                <span className="font-semibold text-on-surface text-sm truncate">{a.word}</span>
+          <h3 className="font-headline font-bold text-lg lg:text-xl text-on-surface px-1 lg:px-0">Review</h3>
+          <div className="space-y-2 lg:max-h-[420px] lg:overflow-y-auto lg:pr-1">
+            {detailedAnswers.map((a, i) => (
+              <div key={i} className={clsx("p-4 rounded-2xl",
+                a.correct ? "bg-secondary-container/30" :
+                a.skipped ? "bg-surface-container-high" :
+                "bg-error-container/20")}>
+                <div className="flex items-start gap-3">
+                  <span className={clsx("material-symbols-outlined shrink-0 text-base mt-0.5",
+                    a.correct ? "text-secondary" :
+                    a.skipped ? "text-on-surface-variant" :
+                    "text-error")}
+                    style={{ fontVariationSettings: "'FILL' 1" }}>
+                    {a.correct ? "check_circle" : a.skipped ? "remove_circle" : "cancel"}
+                  </span>
+                  <p className="text-sm font-semibold text-on-surface leading-snug">{a.question}</p>
+                </div>
+                {!a.correct && (
+                  <div className="mt-2 ml-7 space-y-1">
+                    {a.skipped ? (
+                      <p className="text-xs text-on-surface-variant italic">Skipped</p>
+                    ) : (
+                      <p className="text-xs text-error">Your answer: &ldquo;{a.userAnswer}&rdquo;</p>
+                    )}
+                    <p className="text-xs font-bold text-secondary">✓ {a.correctAnswer}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
