@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "@prisma/adapter-neon": "^5.22.0",
     "@prisma/client": "^5.22.0",
     "@types/nodemailer": "^7.0.7",
     "@upstash/redis": "^1.37.0",
