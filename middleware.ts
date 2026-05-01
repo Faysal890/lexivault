@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtDecrypt } from "jose";
 
-// Matches next-auth v4's getDerivedEncryptionKey(secret, salt="")
-// hkdf("sha256", secret, salt="", "NextAuth.js Generated Encryption Key", 32)
+export const runtime = "edge";
+
+// Replicates next-auth v4's getDerivedEncryptionKey(secret, salt="")
 async function getDerivedKey(secret: string): Promise<Uint8Array> {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -17,7 +18,7 @@ async function getDerivedKey(secret: string): Promise<Uint8Array> {
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: new Uint8Array(0), // salt="" → empty byte array
+      salt: new Uint8Array(0),
       info: enc.encode("NextAuth.js Generated Encryption Key"),
     },
     keyMaterial,
@@ -41,7 +42,7 @@ async function getSessionToken(request: NextRequest): Promise<{ id: string; role
   }
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const session = await getSessionToken(request);
 
   if (!session) {
