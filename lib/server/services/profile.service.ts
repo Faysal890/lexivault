@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs";
+import { hashPassword, verifyPassword } from "@/lib/server/password";
 import { BadRequestError, NotFoundError } from "../errors";
 import { userRepo } from "../repositories/user.repo";
 import type { ChangePasswordInput, ProfileDto, UpdateProfileInput } from "../dto/profile";
@@ -18,10 +18,10 @@ export const profileService = {
     const row = await userRepo.getPasswordHash(userId);
     if (!row) throw new NotFoundError("User not found");
 
-    const matches = await bcrypt.compare(input.currentPassword, row.passwordHash);
+    const matches = await verifyPassword(input.currentPassword, row.passwordHash);
     if (!matches) throw new BadRequestError("Current password is incorrect");
 
-    const passwordHash = await bcrypt.hash(input.newPassword, 12);
+    const passwordHash = await hashPassword(input.newPassword);
     await userRepo.updatePasswordHash(userId, passwordHash);
   },
 };

@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/lib/server/password";
 import crypto from "crypto";
 import { BadRequestError, ConflictError } from "../errors";
 import { userRepo } from "../repositories/user.repo";
@@ -42,7 +42,7 @@ export const authService = {
     const existing = await userRepo.findByEmail(input.email);
     if (existing) throw new ConflictError("Email already in use");
 
-    const passwordHash = await bcrypt.hash(input.password, 12);
+    const passwordHash = await hashPassword(input.password);
     const user = await userRepo.createWithStreak({
       name: input.name,
       email: input.email,
@@ -110,7 +110,7 @@ export const authService = {
       throw new BadRequestError("This reset link has expired. Please request a new one.");
     }
 
-    const passwordHash = await bcrypt.hash(input.password, 12);
+    const passwordHash = await hashPassword(input.password);
     await passwordResetTokenRepo.markUsedAndUpdatePassword(record.id, record.user.id, passwordHash);
 
     return { message: "Password updated successfully." };

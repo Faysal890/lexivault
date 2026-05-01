@@ -1,6 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
+import { verifyPassword } from "@/lib/server/password";
 import { prisma } from "@/lib/prisma";
 
 // Per-email login attempt counter. Pure in-process — fine for single-instance hosting.
@@ -52,7 +52,7 @@ export const authOptions: NextAuthOptions = {
 
         if (!user) return null;
 
-        const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+        const isValid = await verifyPassword(credentials.password, user.passwordHash);
         if (!isValid) return null;
 
         if (!user.emailVerified) throw new Error("EmailNotVerified");
