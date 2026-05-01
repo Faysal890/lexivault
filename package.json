@@ -14,7 +14,7 @@
   "dependencies": {
     "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
     "@prisma/client": "^5.22.0",
-    "@types/nodemailer": "^8.0.0",
+    "@types/nodemailer": "^7.0.7",
     "@upstash/redis": "^1.37.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
@@ -25,7 +25,7 @@
     "jspdf-autotable": "^5.0.7",
     "next": "^16.2.4",
     "next-auth": "^4.24.14",
-    "nodemailer": "^8.0.7",
+    "nodemailer": "^7.0.13",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-hot-toast": "^2.4.1",
