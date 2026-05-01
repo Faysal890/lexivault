@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtDecrypt } from "jose";
 
-export const runtime = "edge";
+export const runtime = "experimental-edge";
 
 // Replicates next-auth v4's getDerivedEncryptionKey(secret, salt="")
 async function getDerivedKey(secret: string): Promise<Uint8Array> {
