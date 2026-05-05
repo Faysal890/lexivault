@@ -549,8 +549,13 @@ export default async function LandingPage() {
               </ul>
             </div>
           </div>
-          <div className="flex flex-col md:flex-row justify-between items-center gap-3 pt-8 border-t border-surface-container-high">
-            <p className="text-xs text-outline">© {new Date().getFullYear()} LexiVault. All rights reserved.</p>
+           <div className="flex flex-col md:flex-row justify-between items-center gap-3 pt-8 border-t border-surface-container-high">
+            <div className="flex items-center gap-4">
+              <p className="text-xs text-outline">© {new Date().getFullYear()} LexiVault. All rights reserved.</p>
+              <Link href="/privacy-policy" className="text-xs text-outline hover:text-on-surface transition-colors">
+                Privacy Policy
+              </Link>
+            </div>
             <p className="text-xs text-outline">Made for language learners worldwide</p>
           </div>
         </div>
