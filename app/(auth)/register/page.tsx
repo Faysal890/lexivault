@@ -240,7 +240,14 @@ export default function RegisterPage() {
                   </button>
                 </form>
 
-                <div className="mt-6 text-center text-sm text-on-surface-variant">
+                <p className="mt-4 text-center text-xs text-on-surface-variant/70">
+                  By creating an account, you agree to our{" "}
+                  <Link href="/privacy-policy" className="underline hover:text-on-surface-variant">
+                    Privacy Policy
+                  </Link>
+                </p>
+
+                <div className="mt-4 text-center text-sm text-on-surface-variant">
                   Already have an account?{" "}
                   <Link href="/login" className="text-primary font-bold hover:underline">Sign in</Link>
                 </div>

@@ -123,6 +123,13 @@ export default function LoginPage() {
                 Create one
               </Link>
             </div>
+
+            <p className="mt-4 text-center text-xs text-on-surface-variant/70">
+              By signing in, you agree to our{" "}
+              <Link href="/privacy-policy" className="underline hover:text-on-surface-variant">
+                Privacy Policy
+              </Link>
+            </p>
           </div>
         </div>
       </div>
